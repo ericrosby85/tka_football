@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -66,6 +67,13 @@
   .qtrRow{display:flex; gap:5px;}
   .qtrRow button{width:34px; height:34px; font-size:20px; font-weight:800; border-radius:6px; border:1px solid var(--border); background:var(--card2); color:var(--text); font-family:'Courier New',monospace;}
   .qtrRow button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+
+  .possArrow{
+    font-size:26px; line-height:1; color:var(--border); cursor:pointer; padding:4px 8px;
+    border-radius:8px; border:1px solid transparent; transition:color .15s, background .15s, border-color .15s;
+    flex:0 0 auto;
+  }
+  .possArrow.active{color:#fff; background:var(--accent); border-color:var(--accent);}
 
   section{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px; margin-bottom:10px;}
   h2{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px;}
@@ -182,6 +190,7 @@
     </div>
 
     <div class="midInfo">
+      <div class="possArrow" id="possArrowA" onclick="setPossession('A')" title="TKA has the ball">◀</div>
       <div class="centerGroup">
         <label class="miniLabel">Down</label>
         <div class="btnGrid g4 miniBtnGrid" id="downGrid">
@@ -209,6 +218,7 @@
         <label class="miniLabel">Qtr</label>
         <div class="qtrRow" id="qtrRow"></div>
       </div>
+      <div class="possArrow" id="possArrowB" onclick="setPossession('B')" title="Opponent has the ball">▶</div>
     </div>
 
     <div class="teamCard opp">
@@ -519,6 +529,9 @@ function renderScoreboard(){
     <div class="btn ${state.possession==='A'?'sel':''}" onclick="setPossession('A')">${state.teamA} Ball</div>
     <div class="btn ${state.possession==='B'?'sel':''}" onclick="setPossession('B')">${state.teamB} Ball</div>
   `;
+
+  document.getElementById('possArrowA').classList.toggle('active', state.possession==='A');
+  document.getElementById('possArrowB').classList.toggle('active', state.possession==='B');
 }
 
 document.getElementById('teamAName').addEventListener('input', e=>{ state.teamA=e.target.value||'TKA'; save(); renderScoreboard(); renderLog(); });
