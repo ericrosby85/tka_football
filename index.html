@@ -363,14 +363,14 @@
         <label class="miniLabel">Ball On</label>
         <div class="ballOnRow">
           <div class="btnGrid g2 miniBtnGrid" id="sideGrid">
-            <div class="btn small" data-val="OWN" onclick="pick('side',this)">OWN</div>
+            <div class="btn small" data-val="TKA" onclick="pick('side',this)">TKA</div>
             <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
           </div>
           <input type="number" id="yardLine" class="miniInput" placeholder="25" min="0" max="50">
         </div>
       </div>
     </div>
-    <div class="statNote" style="margin-top:6px;">Read the real scoreboard after the play and enter what it shows — this saves with the play and sets the starting spot for the next one.</div>
+    <div class="statNote" style="margin-top:6px;">Read the real scoreboard after the play and enter what it shows — this saves with the play and sets the starting spot for the next one. TKA/OPP always means whose territory the ball is in, no matter who has the ball — e.g. if the other team punts it out at the TKA 32, enter TKA 32 here even though they were the ones who just played.</div>
   </section>
   <div class="statNote" id="freeKickNote" style="display:none; margin:0 0 10px;">No down/distance/spot needed here — this play is followed by a free kick. Tap the possession arrow for whoever's kicking, then log it as a Kickoff.</div>
 
@@ -989,6 +989,10 @@ function fmtTacklers(p){
   return t.length ? t.map(label).join(', ') : '';
 }
 
+// Maps a "TKA X" / "OPP X" yard-line entry onto a single fixed 0-100 scale — 0 is TKA's own
+// goal line, 100 is the opponent's — regardless of who currently has the ball. (Also accepts
+// the legacy "OWN" value from before this was fixed to a specific team, treating it the same
+// as "TKA" — see the Play Log for anything logged before this change that may need a check.)
 function yardLineAbs(side, num){
   const n = parseFloat(num);
   if(isNaN(n)) return null;
@@ -1015,6 +1019,11 @@ function walkPlays(playsArr){
 
     const beforePos = carryPos;
     const afterPosRaw = yardLineAbs(play.side, play.yardLineNum);
+    // TKA/OPP are fixed to actual field position (0 = TKA's own goal line, 100 = the
+    // opponent's), regardless of who has the ball. So "gaining yards" means moving toward
+    // the *other* team's goal line — increasing absolute position for TKA on offense,
+    // decreasing for the opponent on offense.
+    const dir = off==='A' ? 1 : -1;
 
     let yardsOnPlay = 0;
     if(play.isPreSnap){
@@ -1026,16 +1035,16 @@ function walkPlays(playsArr){
     } else if(play.result==='Incomplete'){
       yardsOnPlay = 0;
     } else if(play.result==='TD'){
-      yardsOnPlay = 100 - beforePos;
+      yardsOnPlay = off==='A' ? (100 - beforePos) : beforePos;
     } else if(play.result==='Safety'){
-      yardsOnPlay = -beforePos;
+      yardsOnPlay = off==='A' ? -beforePos : (beforePos - 100);
     } else if(play.result==='FG'){
       yardsOnPlay = 0;
-    } else if(turnover){
-      yardsOnPlay = (afterPosRaw!=null) ? (100-afterPosRaw) - beforePos : 0;
     } else {
-      // Tackled, Tackle for Loss, Sack, Complete Pass — normal continuing-drive plays
-      yardsOnPlay = (afterPosRaw!=null) ? (afterPosRaw - beforePos) : 0;
+      // Tackled, Tackle for Loss, Sack, Complete Pass, Interception, Fumble, Turnover —
+      // all just a move from beforePos to afterPos in the fixed TKA/OPP frame. Turnovers no
+      // longer need special "mirrored" math since the frame doesn't flip with possession.
+      yardsOnPlay = (afterPosRaw!=null) ? dir*(afterPosRaw - beforePos) : 0;
     }
 
     let isFirstDown = false, fdType = null;
