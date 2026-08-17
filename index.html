@@ -67,6 +67,9 @@
   .qtrRow button{width:34px; height:34px; font-size:20px; font-weight:800; border-radius:6px; border:1px solid var(--border); background:var(--card2); color:var(--text); font-family:'Courier New',monospace;}
   .qtrRow button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
 
+  .situationDisplay{font-size:24px; font-weight:800; font-family:'Courier New',monospace; color:#fff; letter-spacing:.02em; text-align:center; white-space:nowrap;}
+  .nextSituationRow{display:flex; flex-wrap:wrap; gap:14px; justify-content:space-around; align-items:center; background:#000; border-radius:10px; border:1px solid var(--silver-d); padding:10px 12px;}
+
   .possArrow{
     font-size:26px; line-height:1; color:var(--border); cursor:pointer; padding:4px 8px;
     border-radius:8px; border:1px solid transparent; transition:color .15s, background .15s, border-color .15s;
@@ -165,8 +168,11 @@
   th{color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--card);}
   .logWrap{max-height:260px; overflow-y:auto;}
   .scoreTag{font-weight:800; color:var(--green-l);}
-  tr.tka-row td:first-child{border-left:3px solid var(--tka-light);}
-  tr.opp-row td:first-child{border-left:3px solid var(--opp-light);}
+  tr.tka-row td:nth-child(2){border-left:3px solid var(--tka-light);}
+  tr.opp-row td:nth-child(2){border-left:3px solid var(--opp-light);}
+  tr.editing-row{background:rgba(56,139,253,.18);}
+  .editRowBtn{background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:5px; padding:3px 6px; font-size:12px; cursor:pointer;}
+  .editRowBtn:active{background:var(--accent); color:#fff;}
 
   .toast{
     position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
@@ -199,28 +205,9 @@
 
     <div class="midInfo">
       <div class="possArrow" id="possArrowA" onclick="setPossession('A')" title="TKA has the ball">◀</div>
-      <div class="centerGroup">
-        <label class="miniLabel">Down</label>
-        <div class="btnGrid g4 miniBtnGrid" id="downGrid">
-          <div class="btn" data-val="1" onclick="pick('down',this)">1</div>
-          <div class="btn" data-val="2" onclick="pick('down',this)">2</div>
-          <div class="btn" data-val="3" onclick="pick('down',this)">3</div>
-          <div class="btn" data-val="4" onclick="pick('down',this)">4</div>
-        </div>
-      </div>
-      <div class="centerGroup">
-        <label class="miniLabel">To Go</label>
-        <input type="text" id="distance" class="miniInput toGoInput" maxlength="2" placeholder="10">
-      </div>
-      <div class="centerGroup">
-        <label class="miniLabel">Ball On</label>
-        <div class="ballOnRow">
-          <div class="btnGrid g2 miniBtnGrid" id="sideGrid">
-            <div class="btn small" data-val="OWN" onclick="pick('side',this)">OWN</div>
-            <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
-          </div>
-          <input type="number" id="yardLine" class="miniInput" placeholder="25" min="0" max="50">
-        </div>
+      <div class="centerGroup" style="flex:1 1 auto; min-width:130px;">
+        <label class="miniLabel">Current Situation</label>
+        <div id="currentSituationDisplay" class="situationDisplay">—</div>
       </div>
       <div class="centerGroup">
         <label class="miniLabel">Qtr</label>
@@ -240,7 +227,7 @@
       </div>
     </div>
   </div>
-  <div class="hint" style="margin:2px 0 10px;">Down / To Go / Ball On carry over from the last play — read the real scoreboard and correct them here if needed.</div>
+  <div class="hint" style="margin:2px 0 10px;">Enter this play's result below. The Down / To Go / Ball On you set there become this play's outcome AND the starting spot shown above for the next play.</div>
 
   <div class="topBtns">
     <button class="undo" onclick="undoLast()">↺ Undo Last Play</button>
@@ -252,6 +239,7 @@
     <div class="btn" id="tabPlays" onclick="showView('plays')">📋 Play-by-Play</div>
     <div class="btn" id="tabStats" onclick="showView('stats')">📊 Box Score</div>
     <div class="btn" id="tabPlayers" onclick="showView('players')">🏈 Player Stats</div>
+    <div class="btn" id="tabRoster" onclick="showView('roster')">👤 Roster</div>
   </div>
 
   <div id="viewPlays">
@@ -281,13 +269,15 @@
 
   <section>
     <h2>Play Type</h2>
-    <div class="btnGrid g2" id="typeGrid">
+    <div class="btnGrid g4" id="typeGrid">
       <div class="btn" data-val="Run" onclick="pick('type',this)">RUN</div>
       <div class="btn" data-val="Pass" onclick="pick('type',this)">PASS</div>
+      <div class="btn" data-val="Kickoff" onclick="pick('type',this)">KICKOFF</div>
+      <div class="btn" data-val="Punt" onclick="pick('type',this)">PUNT</div>
     </div>
   </section>
 
-  <section>
+  <section id="dirSection">
     <h2>Direction</h2>
     <div class="btnGrid g3" id="dirGrid">
       <div class="btn" data-val="Left" onclick="pick('dir',this)">LEFT</div>
@@ -308,8 +298,14 @@
         <div class="btn small" data-val="Interception" data-for="Pass" onclick="pick('result',this)">Interception</div>
         <div class="btn small" data-val="Fumble" data-for="Run,Pass" onclick="pick('result',this)">Fumble</div>
         <div class="btn small" data-val="Turnover" data-for="Run,Pass" onclick="pick('result',this)">Other Turnover</div>
-        <div class="btn small" data-val="TD" data-for="Run,Pass" onclick="pick('result',this)">Touchdown</div>
-        <div class="btn small" data-val="Safety" data-for="Run,Pass" onclick="pick('result',this)">Safety</div>
+        <div class="btn small" data-val="Touchback" data-for="Kickoff,Punt" onclick="pick('result',this)">Touchback</div>
+        <div class="btn small" data-val="Return" data-for="Kickoff,Punt" onclick="pick('result',this)">Return</div>
+        <div class="btn small" data-val="FairCatch" data-for="Punt" onclick="pick('result',this)">Fair Catch</div>
+        <div class="btn small" data-val="Downed" data-for="Punt" onclick="pick('result',this)">Downed</div>
+        <div class="btn small" data-val="KORecovered" data-for="Kickoff,Punt" onclick="pick('result',this)">Recovered by Kicking Team</div>
+        <div class="btn small" data-val="OutOfBounds" data-for="Kickoff,Punt" onclick="pick('result',this)">Out of Bounds</div>
+        <div class="btn small" data-val="TD" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Touchdown</div>
+        <div class="btn small" data-val="Safety" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Safety</div>
         <div class="btn small" data-val="FG" data-for="Run,Pass" onclick="pick('result',this)">FG Good</div>
       </div>
       <div class="patBox" id="patBox">
@@ -320,6 +316,8 @@
           <div class="btn small" data-val="pat2pass" onclick="pick('pat',this)">2pt Pass +2</div>
           <div class="btn small" data-val="patno" onclick="pick('pat',this)">No Good</div>
         </div>
+        <label class="fieldLabel" style="margin-top:8px;">Scorer # (kicker for XP, ball carrier/receiver for 2pt)</label>
+        <input type="tel" id="patPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 4">
       </div>
     </section>
 
@@ -345,17 +343,50 @@
     </section>
   </div>
 
-  <button class="logBtn" onclick="logPlay()">✓ LOG PLAY</button>
+  <section id="situationSection">
+    <h2>Result: Down / To Go / Ball On (after this play)</h2>
+    <div class="nextSituationRow">
+      <div class="centerGroup">
+        <label class="miniLabel">Down</label>
+        <div class="btnGrid g4 miniBtnGrid" id="downGrid">
+          <div class="btn" data-val="1" onclick="pick('down',this)">1</div>
+          <div class="btn" data-val="2" onclick="pick('down',this)">2</div>
+          <div class="btn" data-val="3" onclick="pick('down',this)">3</div>
+          <div class="btn" data-val="4" onclick="pick('down',this)">4</div>
+        </div>
+      </div>
+      <div class="centerGroup">
+        <label class="miniLabel">To Go</label>
+        <input type="text" id="distance" class="miniInput toGoInput" maxlength="2" placeholder="10">
+      </div>
+      <div class="centerGroup">
+        <label class="miniLabel">Ball On</label>
+        <div class="ballOnRow">
+          <div class="btnGrid g2 miniBtnGrid" id="sideGrid">
+            <div class="btn small" data-val="OWN" onclick="pick('side',this)">OWN</div>
+            <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
+          </div>
+          <input type="number" id="yardLine" class="miniInput" placeholder="25" min="0" max="50">
+        </div>
+      </div>
+    </div>
+    <div class="statNote" style="margin-top:6px;">Read the real scoreboard after the play and enter what it shows — this saves with the play and sets the starting spot for the next one.</div>
+  </section>
+  <div class="statNote" id="freeKickNote" style="display:none; margin:0 0 10px;">No down/distance/spot needed here — this play is followed by a free kick. Tap the possession arrow for whoever's kicking, then log it as a Kickoff.</div>
+
+  <button class="logBtn" onclick="logPlay()"><span id="logBtnText">✓ LOG PLAY</span></button>
+  <div class="btn small" id="cancelEditBtn" style="display:none; text-align:center; margin-top:6px; background:var(--red); border-color:var(--red); color:#fff;" onclick="cancelEdit()">✕ Cancel Edit</div>
 
   </div>
 
   <div class="logCol">
   <section>
     <h2>Play Log</h2>
+    <div class="statNote" style="margin:0 0 6px;">Tap ✎ on any row (usually the last one) to correct it once you see the down/distance update on the real scoreboard — the yardage recalculates automatically.</div>
     <div class="logWrap">
       <table>
         <thead>
-          <tr><th>#</th><th>Team</th><th>Player</th><th>Type</th><th>Dir</th><th>Tacklers</th><th>Pen</th><th>Result</th><th>Down/Dist</th><th>Yard Line</th><th>Yds</th><th>1D</th><th>Score</th></tr>
+          <tr><th></th><th>#</th><th>Team</th><th>Player</th><th>Type</th><th>Dir</th><th>Tacklers</th><th>Pen</th><th>Result</th><th>Down/Dist</th><th>Yard Line</th><th>Yds</th><th>1D</th><th>Score</th></tr>
         </thead>
         <tbody id="logBody"></tbody>
       </table>
@@ -397,6 +428,23 @@
       <h2>Tackles</h2>
       <div id="playerTacklesTable"></div>
     </section>
+    <section>
+      <h2>Kicking / PAT-2pt</h2>
+      <div id="playerKickingTable"></div>
+    </section>
+  </div>
+
+  <div id="viewRoster" style="display:none;">
+    <section>
+      <h2>Team Roster</h2>
+      <div class="statNote" style="margin-top:0;">Paste your roster below, one player per line — jersey number then name (e.g. "12 John Smith"). This just powers name lookups on the Play Log and Stats pages; it carries over between games and doesn't reset with "New Game."</div>
+      <textarea id="rosterInput" rows="12" placeholder="12 John Smith&#10;22 Jake Turner&#10;..." style="width:100%; background:var(--card2); border:2px solid var(--border); color:var(--text); border-radius:10px; padding:10px; font-size:15px; font-family:inherit;"></textarea>
+      <button class="logBtn" style="margin-top:10px;" onclick="saveRosterFromInput()">💾 Save Roster</button>
+    </section>
+    <section>
+      <h2>Saved Roster</h2>
+      <div id="rosterPreview"></div>
+    </section>
   </div>
 
 </div>
@@ -405,6 +453,57 @@
 <script>
 const STORAGE_KEY = 'tka_stat_tracker_v1';
 const HISTORY_KEY = 'tka_game_history_v1';
+const ROSTER_KEY = 'tka_roster_v1';
+
+// Roster is stored separately from game state — it's a season-long lookup (jersey # -> name)
+// and should survive "New Game" resets, unlike team names/scores/plays.
+let roster = {};
+function loadRoster(){
+  try{ roster = JSON.parse(localStorage.getItem(ROSTER_KEY)) || {}; }catch(e){ roster = {}; }
+}
+function saveRosterToStorage(){
+  localStorage.setItem(ROSTER_KEY, JSON.stringify(roster));
+}
+// Accepts pasted text, one player per line: a jersey number followed by a name,
+// separated by a space, comma, dash, period, or colon (handles common paste formats).
+function parseRosterText(text){
+  const result = {};
+  text.split('\n').forEach(line=>{
+    line = line.trim();
+    if(!line) return;
+    const m = line.match(/^#?(\d{1,3})[\s,.\-:]+(.+)$/);
+    if(m) result[m[1]] = m[2].trim();
+  });
+  return result;
+}
+function rosterToText(){
+  return Object.keys(roster).sort(playerNumSort).map(n=>`${n} ${roster[n]}`).join('\n');
+}
+function saveRosterFromInput(){
+  const text = document.getElementById('rosterInput').value;
+  const parsed = parseRosterText(text);
+  const count = Object.keys(parsed).length;
+  if(count===0){ showToast('No players found — use "12 Name" per line'); return; }
+  roster = parsed;
+  saveRosterToStorage();
+  renderRosterPreview();
+  renderLog();
+  showToast(`Roster saved — ${count} player${count===1?'':'s'}`);
+}
+function renderRosterPreview(){
+  const el = document.getElementById('rosterPreview');
+  const nums = Object.keys(roster).sort(playerNumSort);
+  if(nums.length===0){ el.innerHTML = '<div class="statNote" style="margin:0;">No roster saved yet.</div>'; return; }
+  let out = '<div class="statTableWrap"><table class="statTable"><thead><tr><th>#</th><th>Name</th></tr></thead><tbody>';
+  nums.forEach(n=>{ out += `<tr><td>#${n}</td><td>${roster[n]}</td></tr>`; });
+  out += '</tbody></table></div>';
+  el.innerHTML = out;
+}
+// Returns "Name #12" if the number is on the roster, otherwise just "#12".
+function rosterLabel(num){
+  if(!num) return '';
+  return roster[num] ? `${roster[num]} #${num}` : `#${num}`;
+}
 
 function loadHistory(){
   try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){ return []; }
@@ -450,6 +549,8 @@ let state = {
 };
 
 let entry = {}; // current in-progress play selections
+let editingIndex = null; // index into state.plays currently being corrected, or null
+let editSnapshot = null; // possession/current-situation to restore after an edit finishes
 
 const PENALTIES = [
   {y:5, name:'False Start', on:'Offense', preSnap:true},
@@ -535,6 +636,15 @@ function renderScoreboard(){
 
   document.getElementById('possArrowA').classList.toggle('active', state.possession==='A');
   document.getElementById('possArrowB').classList.toggle('active', state.possession==='B');
+
+  renderCurrentSituation();
+}
+
+function renderCurrentSituation(){
+  const dd = fmtDownDist({down: state.currentDown, distance: state.currentDistance});
+  const yl = fmtYardLine({side: state.currentSide, yardLineNum: state.currentYardLine});
+  const text = [dd, yl].filter(Boolean).join(' — ');
+  document.getElementById('currentSituationDisplay').textContent = text || '—';
 }
 
 document.getElementById('teamAName').addEventListener('input', e=>{ state.teamA=e.target.value||'TKA'; save(); renderScoreboard(); renderLog(); });
@@ -546,9 +656,12 @@ function updateConditionalFields(){
   const passerBox = document.getElementById('passerBox');
   const tacklerBox = document.getElementById('tacklerBox');
   const label = document.getElementById('playerNumLabel');
+  const dirSection = document.getElementById('dirSection');
+  const isSpecialTeams = entry.type==='Kickoff' || entry.type==='Punt';
   passerBox.style.display = (entry.type==='Pass' && state.possession==='A') ? 'block' : 'none';
-  tacklerBox.style.display = (state.possession==='B') ? 'block' : 'none';
-  label.textContent = entry.type==='Run' ? 'Rusher #' : entry.type==='Pass' ? 'Receiver #' : 'Player #';
+  tacklerBox.style.display = (state.possession==='B' && !isSpecialTeams) ? 'block' : 'none';
+  dirSection.style.display = isSpecialTeams ? 'none' : '';
+  label.textContent = entry.type==='Run' ? 'Rusher #' : entry.type==='Pass' ? 'Receiver #' : isSpecialTeams ? 'Returner # (leave blank if no return)' : 'Player #';
 
   const resultGrid = document.getElementById('resultGrid');
   let clearedSelection = false;
@@ -580,8 +693,8 @@ function pick(field, el){
   let cls='sel';
   if(field==='result'){
     if(el.dataset.val==='TD') cls='selGreen';
-    else if(['Turnover','Interception','Fumble','Safety'].includes(el.dataset.val)) cls='selRed';
-    else if(['FG','Sack','TFL'].includes(el.dataset.val)) cls='selAmber';
+    else if(['Turnover','Interception','Fumble','Safety','KORecovered'].includes(el.dataset.val)) cls='selRed';
+    else if(['FG','Sack','TFL','Punt','OutOfBounds'].includes(el.dataset.val)) cls='selAmber';
   }
   el.classList.add(cls);
   entry[field] = el.dataset.val;
@@ -589,6 +702,12 @@ function pick(field, el){
   if(field==='result'){
     document.getElementById('patBox').classList.toggle('show', el.dataset.val==='TD');
     if(el.dataset.val!=='TD') delete entry.pat;
+
+    // TD/Safety/FG are always followed by a free kick (kickoff), not a normal down —
+    // so the Down/To Go/Ball On section doesn't apply to the play itself.
+    const followedByFreeKick = ['TD','Safety','FG'].includes(el.dataset.val);
+    document.getElementById('situationSection').style.display = followedByFreeKick ? 'none' : '';
+    document.getElementById('freeKickNote').style.display = followedByFreeKick ? '' : 'none';
   }
   if(field==='type'){
     updateConditionalFields();
@@ -617,12 +736,10 @@ function logPlay(){
   const penaltyName = entry.penaltyName || '';
   const isPreSnap = !!entry.penPreSnap && penYards>0;
   const pat = entry.pat || '';
+  const patPlayer = document.getElementById('patPlayerNum').value.trim();
   const passer = document.getElementById('passerNum').value.trim();
   const tackler1 = document.getElementById('tackler1').value.trim();
   const tackler2 = document.getElementById('tackler2').value.trim();
-
-  if(!playerNum){ showToast('Enter a player #'); return; }
-  if(!type){ showToast('Pick Run or Pass'); return; }
 
   const offenseSide = state.possession; // 'A' or 'B'
   const defenseSide = offenseSide==='A' ? 'B' : 'A';
@@ -638,13 +755,19 @@ function logPlay(){
     scoreDelta[defenseSide]+=2;
   }
 
+  if(editingIndex!==null){
+    // Correcting an already-logged play: back out its old score contribution before applying the new one.
+    const old = state.plays[editingIndex];
+    state.scoreA -= old.scoreDelta.A;
+    state.scoreB -= old.scoreDelta.B;
+  }
   state.scoreA += scoreDelta.A;
   state.scoreB += scoreDelta.B;
 
   const play = {
     quarter: state.quarter,
     offenseTeam: offenseSide==='A' ? state.teamA : state.teamB,
-    offenseSide, playerNum, type, dir, result, pat,
+    offenseSide, playerNum, type, dir, result, pat, patPlayer,
     passer, tackler1, tackler2,
     down, distance, side, yardLineNum,
     hasPenalty: penYards>0,
@@ -652,12 +775,35 @@ function logPlay(){
     scoreAfter: `${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}`,
     scoreDelta
   };
+
+  if(editingIndex!==null){
+    state.plays[editingIndex] = play;
+    const editedIndex = editingIndex;
+    editingIndex = null;
+    if(editSnapshot){
+      state.possession = editSnapshot.possession;
+      state.currentDown = editSnapshot.currentDown;
+      state.currentDistance = editSnapshot.currentDistance;
+      state.currentSide = editSnapshot.currentSide;
+      state.currentYardLine = editSnapshot.currentYardLine;
+      editSnapshot = null;
+    }
+    save();
+    clearEntry();
+    restoreCurrentSituation();
+    renderScoreboard();
+    renderLog();
+    setLogBtnMode(false);
+    showToast(`Play #${editedIndex+1} updated`);
+    return;
+  }
+
   state.plays.push(play);
   save();
   renderScoreboard();
   renderLog();
 
-  const driveEnds = ['TD','FG','Safety','Turnover','Interception','Fumble'].includes(result);
+  const driveEnds = ['TD','FG','Safety','Turnover','Interception','Fumble','Punt'].includes(result);
   clearEntry();
   if(!driveEnds){
     // Carry the down/distance/yard-line forward as the starting point for the next play —
@@ -666,9 +812,96 @@ function logPlay(){
   } else {
     state.currentDown = ''; state.currentDistance = ''; state.currentSide = ''; state.currentYardLine = '';
   }
+  renderCurrentSituation();
+  if(result==='Punt'){
+    // Punts change possession automatically — tap the arrow to flip it back if the punting team recovered it.
+    setPossession(defenseSide);
+  }
   save();
   restoreCurrentSituation();
-  showToast(driveEnds ? "Play logged — enter the new drive's starting spot" : 'Play logged');
+  const followedByFreeKick = ['TD','Safety','FG'].includes(result);
+  showToast(
+    result==='Punt' ? 'Punt logged — possession flipped (tap the arrow if it was recovered)' :
+    followedByFreeKick ? 'Logged — tap the possession arrow for whoever\'s kicking, then log the free kick as a Kickoff' :
+    driveEnds ? "Play logged — enter the new drive's starting spot" : 'Play logged'
+  );
+}
+
+function setLogBtnMode(isEditing, index){
+  document.getElementById('logBtnText').textContent = isEditing ? `✓ UPDATE PLAY #${index+1}` : '✓ LOG PLAY';
+  document.getElementById('cancelEditBtn').style.display = isEditing ? 'block' : 'none';
+}
+
+function editPlay(index){
+  const p = state.plays[index];
+  if(!p) return;
+
+  editSnapshot = {
+    possession: state.possession,
+    currentDown: state.currentDown, currentDistance: state.currentDistance,
+    currentSide: state.currentSide, currentYardLine: state.currentYardLine
+  };
+  editingIndex = index;
+  state.possession = p.offenseSide;
+
+  clearEntry();
+
+  document.getElementById('playerNum').value = p.playerNum || '';
+  document.getElementById('passerNum').value = p.passer || '';
+  document.getElementById('tackler1').value = p.tackler1 || '';
+  document.getElementById('tackler2').value = p.tackler2 || '';
+  document.getElementById('distance').value = p.distance || '';
+  document.getElementById('yardLine').value = p.yardLineNum || '';
+  document.getElementById('penYards').value = p.penYards || '';
+
+  const setBtn = (gridId, val) => {
+    if(!val) return;
+    const btn = [...document.getElementById(gridId).querySelectorAll('.btn')].find(b=>b.dataset.val===val);
+    if(btn) pick(gridId==='downGrid'?'down':gridId==='sideGrid'?'side':gridId==='dirGrid'?'dir':gridId==='typeGrid'?'type':gridId==='penOnGrid'?'penOn':'result', btn);
+  };
+
+  setBtn('typeGrid', p.type);
+  setBtn('dirGrid', p.dir);
+  setBtn('downGrid', p.down);
+  setBtn('sideGrid', p.side);
+  setBtn('penOnGrid', p.penOn);
+  setBtn('resultGrid', p.result);
+  if(p.pat){
+    const patBtn = [...document.querySelectorAll('#patBox .btn')].find(b=>b.dataset.val===p.pat);
+    if(patBtn) pick('pat', patBtn);
+  }
+  document.getElementById('patPlayerNum').value = p.patPlayer || '';
+
+  entry.penaltyName = p.penaltyName || '';
+  entry.penPreSnap = !!p.isPreSnap;
+  if(p.penaltyName){
+    const idx = PENALTIES.findIndex(pen=>pen.name===p.penaltyName);
+    if(idx>=0) document.getElementById('penaltyType').value = idx;
+  }
+
+  renderScoreboard();
+  updateConditionalFields();
+  setLogBtnMode(true, index);
+  renderLog();
+  showToast(`Editing Play #${index+1} — update the fields, then tap Update`);
+}
+
+function cancelEdit(){
+  if(editSnapshot){
+    state.possession = editSnapshot.possession;
+    state.currentDown = editSnapshot.currentDown;
+    state.currentDistance = editSnapshot.currentDistance;
+    state.currentSide = editSnapshot.currentSide;
+    state.currentYardLine = editSnapshot.currentYardLine;
+  }
+  editingIndex = null;
+  editSnapshot = null;
+  clearEntry();
+  restoreCurrentSituation();
+  renderScoreboard();
+  setLogBtnMode(false);
+  renderLog();
+  showToast('Edit cancelled');
 }
 
 function restoreCurrentSituation(){
@@ -701,7 +934,10 @@ function clearEntry(){
   document.getElementById('yardLine').value='';
   document.getElementById('penYards').value='';
   document.getElementById('penaltyType').value='';
+  document.getElementById('patPlayerNum').value='';
   document.getElementById('patBox').classList.remove('show');
+  document.getElementById('situationSection').style.display='';
+  document.getElementById('freeKickNote').style.display='none';
   ['typeGrid','dirGrid','resultGrid','downGrid','penOnGrid','sideGrid'].forEach(id=>{
     document.getElementById(id).querySelectorAll('.btn').forEach(b=>b.classList.remove('sel','selRed','selGreen','selAmber'));
   });
@@ -709,6 +945,7 @@ function clearEntry(){
 }
 
 function undoLast(){
+  if(editingIndex!==null){ showToast('Finish or cancel the edit first'); return; }
   if(state.plays.length===0){ showToast('Nothing to undo'); return; }
   const last = state.plays.pop();
   state.scoreA -= last.scoreDelta.A;
@@ -731,19 +968,25 @@ function fmtPenalty(p){
 }
 const RESULT_LABELS = {
   Tackled:'Tackled', TFL:'Tackle for Loss', CompletePass:'Complete Pass', Incomplete:'Incomplete Pass',
-  Sack:'Sack', Interception:'Interception', Fumble:'Fumble', Turnover:'Other Turnover',
-  TD:'Touchdown', Safety:'Safety', FG:'FG Good'
+  Sack:'Sack', Interception:'Interception', Fumble:'Fumble', Turnover:'Other Turnover', Punt:'Punt',
+  TD:'Touchdown', Safety:'Safety', FG:'FG Good',
+  Touchback:'Touchback', Return:'Return', KORecovered:'Recovered by Kicking Team', OutOfBounds:'Out of Bounds',
+  FairCatch:'Fair Catch', Downed:'Downed'
 };
 function fmtResult(p){
   const label = RESULT_LABELS[p.result] || p.result;
   return label + (p.result==='TD' && p.pat ? ' + '+patLabel(p.pat) : '');
 }
 function fmtPlayer(p){
-  return p.passer ? `#${p.passer} → #${p.playerNum}` : `#${p.playerNum}`;
+  // Roster names only apply to our own players (side A) — we don't track the opponent's roster.
+  const label = p.offenseSide==='A' ? rosterLabel : (n)=>n?'#'+n:'';
+  return p.passer ? `${label(p.passer)} → ${label(p.playerNum)}` : label(p.playerNum);
 }
 function fmtTacklers(p){
+  // Tacklers are always our defenders, credited when the opponent (side B) has the ball.
+  const label = p.offenseSide==='B' ? rosterLabel : (n)=>n?'#'+n:'';
   const t=[p.tackler1,p.tackler2].filter(Boolean);
-  return t.length ? t.map(x=>'#'+x).join(', ') : '';
+  return t.length ? t.map(label).join(', ') : '';
 }
 
 function yardLineAbs(side, num){
@@ -762,9 +1005,13 @@ function walkPlays(playsArr){
   playsArr.forEach(play=>{
     const off = play.offenseSide;
     const def = off==='A' ? 'B' : 'A';
+    const isKickoff = play.type==='Kickoff';
+    // Also recognize a legacy result=='Punt' (the old Run/Pass-scoped Punt button) so any
+    // already-logged plays from before Punt became its own Play Type still walk correctly.
+    const isPunt = play.type==='Punt' || play.result==='Punt';
     const scoring = (play.result==='TD' || play.result==='FG' || play.result==='Safety');
     const turnover = (play.result==='Turnover' || play.result==='Interception' || play.result==='Fumble');
-    const possessionEnds = scoring || turnover;
+    const possessionEnds = scoring || turnover || isKickoff || isPunt;
 
     const beforePos = carryPos;
     const afterPosRaw = yardLineAbs(play.side, play.yardLineNum);
@@ -772,6 +1019,10 @@ function walkPlays(playsArr){
     let yardsOnPlay = 0;
     if(play.isPreSnap){
       yardsOnPlay = 0;
+    } else if(isKickoff || isPunt){
+      // Kickoffs and punts start a fresh drive — there's no meaningful "before" position to
+      // compare against, so we don't calculate return yardage (just the resulting spot below).
+      yardsOnPlay = null;
     } else if(play.result==='Incomplete'){
       yardsOnPlay = 0;
     } else if(play.result==='TD'){
@@ -816,7 +1067,7 @@ function computeStats(){
     sacks:0, sackYds:0, tfl:0,
     fdTotal:0, fdRush:0, fdPass:0, fdPen:0, penalties:0, penYds:0,
     turnovers:0, interceptions:0, fumblesLost:0, turnoverOther:0,
-    td:0, fg:0, safety:0});
+    td:0, fg:0, safety:0, punts:0, kickoffs:0, touchbacks:0});
   const stats = {
     A:{q1:blank(),q2:blank(),q3:blank(),q4:blank(),h1:blank(),h2:blank(),game:blank()},
     B:{q1:blank(),q2:blank(),q3:blank(),q4:blank(),h1:blank(),h2:blank(),game:blank()}
@@ -836,7 +1087,13 @@ function computeStats(){
     const q = 'q'+(p.quarter||1);
     const off = r.off, def = r.def;
 
-    if(!p.isPreSnap){
+    if(!p.isPreSnap && p.type==='Kickoff'){
+      add(off,q,'kickoffs',1);
+      if(p.result==='Touchback') add(off,q,'touchbacks',1);
+    } else if(!p.isPreSnap && (p.type==='Punt' || p.result==='Punt')){
+      // p.result==='Punt' covers any play logged before Punt became its own Play Type.
+      add(off,q,'punts',1);
+    } else if(!p.isPreSnap){
       add(off,q,'plays',1);
       if(p.type==='Run'){
         add(off,q,'rushAtt',1);
@@ -909,6 +1166,8 @@ function renderStats(){
     row('Sacks (by Defense)-Yds', b=>`${b.sacks}-${b.sackYds}`);
     row('Tackles for Loss (by Defense)', b=>b.tfl);
     row('TD / FG / Safety', b=>`${b.td} / ${b.fg} / ${b.safety}`);
+    row('Punts', b=>b.punts);
+    row('Kickoffs Fielded (Touchbacks)', b=>`${b.kickoffs} (${b.touchbacks})`);
 
     out += `</tbody></table></div></div>`;
   });
@@ -919,11 +1178,14 @@ function showView(view){
   document.getElementById('viewPlays').style.display = view==='plays' ? '' : 'none';
   document.getElementById('viewStats').style.display = view==='stats' ? '' : 'none';
   document.getElementById('viewPlayers').style.display = view==='players' ? '' : 'none';
+  document.getElementById('viewRoster').style.display = view==='roster' ? '' : 'none';
   document.getElementById('tabPlays').classList.toggle('sel', view==='plays');
   document.getElementById('tabStats').classList.toggle('sel', view==='stats');
   document.getElementById('tabPlayers').classList.toggle('sel', view==='players');
+  document.getElementById('tabRoster').classList.toggle('sel', view==='roster');
   if(view==='stats') renderStats();
   if(view==='players') renderPlayerStats();
+  if(view==='roster') renderRosterPreview();
 }
 
 // Aggregates one game's plays into per-player-number stats. Offensive stats (rushing/receiving/
@@ -935,14 +1197,14 @@ function computePlayerStatsForPlays(plays){
   const players = {};
   function ensure(num){
     if(!num) return null;
-    if(!players[num]) players[num] = {rushAtt:0,rushYds:0,rushTD:0, rec:0,recYds:0,recTD:0, passAtt:0,passComp:0,passYds:0,passTD:0, tackles:0};
+    if(!players[num]) players[num] = {rushAtt:0,rushYds:0,rushTD:0, rec:0,recYds:0,recTD:0, passAtt:0,passComp:0,passYds:0,passTD:0, tackles:0, xpMade:0, twoPtMade:0};
     return players[num];
   }
   rows.forEach(r=>{
     const p = r.play;
     if(p.isPreSnap) return;
 
-    if(p.offenseSide==='A'){
+    if(p.offenseSide==='A' && p.result!=='Punt'){
       if(p.type==='Run'){
         const st = ensure(p.playerNum);
         if(st){
@@ -974,6 +1236,14 @@ function computePlayerStatsForPlays(plays){
         const t = ensure(num);
         if(t) t.tackles++;
       });
+    }
+
+    if(p.offenseSide==='A' && p.patPlayer){
+      const ps = ensure(p.patPlayer);
+      if(ps){
+        if(p.pat==='pat1') ps.xpMade++;
+        else if(p.pat==='pat2run' || p.pat==='pat2pass') ps.twoPtMade++;
+      }
     }
   });
   return players;
@@ -1008,7 +1278,7 @@ function renderPlayerStats(){
     gameCols.forEach(c=>out+=`<th>${c.label}<br><span style="font-weight:400;">${c.sub}</span></th>`);
     out += '<th>Season</th></tr></thead><tbody>';
     allNums.forEach(num=>{
-      out += `<tr><td class="statLabel">#${num}</td>`;
+      out += `<tr><td class="statLabel">${rosterLabel(num)}</td>`;
       gameStats.forEach(gs=>{
         const st = gs[num];
         out += `<td>${st ? fmt(st) : '—'}</td>`;
@@ -1031,6 +1301,9 @@ function renderPlayerStats(){
   buildTable('playerTacklesTable', ['tackles'],
     st=>`${st.tackles}`,
     st=>st.tackles>0);
+  buildTable('playerKickingTable', ['xpMade','twoPtMade'],
+    st=>`${st.xpMade} XP${st.twoPtMade?', '+st.twoPtMade+' 2pt':''}`,
+    st=>st.xpMade>0 || st.twoPtMade>0);
 
   renderGameHistoryList(games);
 }
@@ -1054,11 +1327,14 @@ function renderLog(){
     const p = r.play;
     const tr = document.createElement('tr');
     tr.className = p.offenseSide==='A' ? 'tka-row' : 'opp-row';
-    const ydsDisplay = p.isPreSnap ? '—' : (r.yardsOnPlay>0 ? '+'+r.yardsOnPlay : r.yardsOnPlay);
-    tr.innerHTML = `<td>${i+1}</td><td>${p.offenseTeam}</td><td>${fmtPlayer(p)}</td><td>${p.type}</td><td>${p.dir}</td><td>${fmtTacklers(p)}</td><td>${fmtPenalty(p)}</td><td>${fmtResult(p)}</td><td>${fmtDownDist(p)}</td><td>${fmtYardLine(p)}</td><td>${ydsDisplay}</td><td>${r.isFirstDown?'✓':''}</td><td class="scoreTag">${p.scoreAfter}</td>`;
+    if(editingIndex===i) tr.classList.add('editing-row');
+    const ydsDisplay = (p.isPreSnap || r.yardsOnPlay===null) ? '—' : (r.yardsOnPlay>0 ? '+'+r.yardsOnPlay : r.yardsOnPlay);
+    tr.innerHTML = `<td><button class="editRowBtn" onclick="editPlay(${i})">✎</button></td><td>${i+1}</td><td>${p.offenseTeam}</td><td>${fmtPlayer(p)}</td><td>${p.type}</td><td>${p.dir}</td><td>${fmtTacklers(p)}</td><td>${fmtPenalty(p)}</td><td>${fmtResult(p)}</td><td>${fmtDownDist(p)}</td><td>${fmtYardLine(p)}</td><td>${ydsDisplay}</td><td>${r.isFirstDown?'✓':''}</td><td class="scoreTag">${p.scoreAfter}</td>`;
     body.appendChild(tr);
   });
-  body.parentElement.parentElement.scrollTop = body.parentElement.parentElement.scrollHeight;
+  if(editingIndex===null){
+    body.parentElement.parentElement.scrollTop = body.parentElement.parentElement.scrollHeight;
+  }
 }
 
 function downloadCSV(rows, filename){
@@ -1080,7 +1356,7 @@ function exportCSV(){
   rows.forEach((r,i)=>{
     const p = r.play;
     out.push([i+1, p.quarter||1, p.offenseTeam, p.playerNum, p.passer||'', p.type, p.dir, p.tackler1||'', p.tackler2||'',
-      fmtPenalty(p), fmtResult(p), fmtDownDist(p), fmtYardLine(p), p.isPreSnap?'':r.yardsOnPlay, r.isFirstDown?'Y':'', p.scoreAfter]);
+      fmtPenalty(p), fmtResult(p), fmtDownDist(p), fmtYardLine(p), (p.isPreSnap||r.yardsOnPlay===null)?'':r.yardsOnPlay, r.isFirstDown?'Y':'', p.scoreAfter]);
   });
   const dateStr = new Date().toISOString().slice(0,10);
   downloadCSV(out, `${state.teamA}_vs_${state.teamB}_${dateStr}.csv`.replace(/\s+/g,''));
@@ -1099,7 +1375,7 @@ function exportSeasonCSV(){
     rows.forEach((r,i)=>{
       const p = r.play;
       out.push([gi+1, dateLabel, matchup, finalScore, i+1, p.quarter||1, p.offenseTeam, p.playerNum, p.passer||'', p.type, p.dir, p.tackler1||'', p.tackler2||'',
-        fmtPenalty(p), fmtResult(p), fmtDownDist(p), fmtYardLine(p), p.isPreSnap?'':r.yardsOnPlay, r.isFirstDown?'Y':'', p.scoreAfter]);
+        fmtPenalty(p), fmtResult(p), fmtDownDist(p), fmtYardLine(p), (p.isPreSnap||r.yardsOnPlay===null)?'':r.yardsOnPlay, r.isFirstDown?'Y':'', p.scoreAfter]);
     });
   });
   const dateStr = new Date().toISOString().slice(0,10);
@@ -1112,16 +1388,21 @@ function newGame(){
     if(!confirm(`Start a new game? "${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}" will be saved to Player Stats/Game history, then the board clears for the next game.`)) return;
     archiveCurrentGame();
   }
+  editingIndex = null;
+  editSnapshot = null;
   state = { teamA:'TKA', teamB:'Opponent', scoreA:0, scoreB:0, quarter:1, possession:'A', plays:[],
     currentDown:'', currentDistance:'', currentSide:'', currentYardLine:'' };
   save();
   renderScoreboard();
   renderLog();
   clearEntry();
+  setLogBtnMode(false);
 }
 
 populatePenaltySelect();
 load();
+loadRoster();
+document.getElementById('rosterInput').value = rosterToText();
 renderScoreboard();
 renderLog();
 updateConditionalFields();
