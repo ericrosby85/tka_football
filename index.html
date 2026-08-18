@@ -126,13 +126,13 @@
     .twoCol{grid-template-columns:1.1fr 1fr;}
   }
 
-  /* Play-by-Play layout: entry form on the left, running Play Log on the right */
-  .playSplit{display:flex; flex-direction:column; gap:12px;}
-  @media (min-width:820px){
-    .playSplit{flex-direction:row; align-items:flex-start;}
-    .playSplit .entryCol{flex:0 0 60%; max-width:60%; min-width:0;}
-    .playSplit .logCol{flex:1 1 auto; min-width:0; position:sticky; top:150px;}
-    .playSplit .logCol .logWrap{max-height:calc(100vh - 210px);}
+  /* Play-by-Play layout: Player/Type/Direction on the left, Result/Penalty/Situation/Log
+     Play on the right — everything needed to log a play fits above the fold. The running
+     Play Log sits below, full-width, and scrolls on its own. */
+  .entryGrid{display:flex; flex-direction:column; gap:16px;}
+  @media (min-width:700px){
+    .entryGrid{flex-direction:row; align-items:flex-start;}
+    .entryGrid .entryLeft, .entryGrid .entryRight{flex:1 1 50%; min-width:0;}
   }
 
   .logBtn{
@@ -262,8 +262,8 @@
   </div>
 
   <div id="viewPlays">
-  <div class="playSplit">
-  <div class="entryCol">
+  <div class="entryGrid">
+  <div class="entryLeft">
 
   <section>
     <h2 id="playerNumLabel">Player #</h2>
@@ -305,47 +305,50 @@
     </div>
   </section>
 
-  <div class="twoCol">
-    <section>
-      <h2>Result</h2>
-      <div class="btnGrid g4" id="resultGrid">
-        <div class="btn small" data-val="Tackled" data-for="Run" onclick="pick('result',this)">Tackled</div>
-        <div class="btn small" data-val="TFL" data-for="Run" onclick="pick('result',this)">Tackle for Loss</div>
-        <div class="btn small" data-val="CompletePass" data-for="Pass" onclick="pick('result',this)">Complete Pass</div>
-        <div class="btn small" data-val="Incomplete" data-for="Pass" onclick="pick('result',this)">Incomplete Pass</div>
-        <div class="btn small" data-val="Sack" data-for="Pass" onclick="pick('result',this)">Sack</div>
-        <div class="btn small" data-val="Interception" data-for="Pass" onclick="pick('result',this)">Interception</div>
-        <div class="btn small" data-val="Fumble" data-for="Run,Pass" onclick="pick('result',this)">Fumble</div>
-        <div class="btn small" data-val="Turnover" data-for="Run,Pass" onclick="pick('result',this)">Other Turnover</div>
-        <div class="btn small" data-val="Touchback" data-for="Kickoff,Punt" onclick="pick('result',this)">Touchback</div>
-        <div class="btn small" data-val="Return" data-for="Kickoff,Punt" onclick="pick('result',this)">Return</div>
-        <div class="btn small" data-val="FairCatch" data-for="Punt" onclick="pick('result',this)">Fair Catch</div>
-        <div class="btn small" data-val="Downed" data-for="Punt" onclick="pick('result',this)">Downed</div>
-        <div class="btn small" data-val="KORecovered" data-for="Kickoff,Punt" onclick="pick('result',this)">Recovered by Kicking Team</div>
-        <div class="btn small" data-val="OutOfBounds" data-for="Kickoff,Punt" onclick="pick('result',this)">Out of Bounds</div>
-        <div class="btn small" data-val="TD" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Touchdown</div>
-        <div class="btn small" data-val="Safety" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Safety</div>
-        <div class="btn small" data-val="FG" data-for="Run,Pass" onclick="pick('result',this)">FG Good</div>
+  <section>
+    <h2>Result</h2>
+    <div class="btnGrid g4" id="resultGrid">
+      <div class="btn small" data-val="Tackled" data-for="Run" onclick="pick('result',this)">Tackled</div>
+      <div class="btn small" data-val="TFL" data-for="Run" onclick="pick('result',this)">Tackle for Loss</div>
+      <div class="btn small" data-val="CompletePass" data-for="Pass" onclick="pick('result',this)">Complete Pass</div>
+      <div class="btn small" data-val="Incomplete" data-for="Pass" onclick="pick('result',this)">Incomplete Pass</div>
+      <div class="btn small" data-val="Sack" data-for="Pass" onclick="pick('result',this)">Sack</div>
+      <div class="btn small" data-val="Interception" data-for="Pass" onclick="pick('result',this)">Interception</div>
+      <div class="btn small" data-val="Fumble" data-for="Run,Pass" onclick="pick('result',this)">Fumble</div>
+      <div class="btn small" data-val="Turnover" data-for="Run,Pass" onclick="pick('result',this)">Other Turnover</div>
+      <div class="btn small" data-val="Touchback" data-for="Kickoff,Punt" onclick="pick('result',this)">Touchback</div>
+      <div class="btn small" data-val="Return" data-for="Kickoff,Punt" onclick="pick('result',this)">Return</div>
+      <div class="btn small" data-val="FairCatch" data-for="Punt" onclick="pick('result',this)">Fair Catch</div>
+      <div class="btn small" data-val="Downed" data-for="Punt" onclick="pick('result',this)">Downed</div>
+      <div class="btn small" data-val="KORecovered" data-for="Kickoff,Punt" onclick="pick('result',this)">Recovered by Kicking Team</div>
+      <div class="btn small" data-val="OutOfBounds" data-for="Kickoff,Punt" onclick="pick('result',this)">Out of Bounds</div>
+      <div class="btn small" data-val="TD" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Touchdown</div>
+      <div class="btn small" data-val="Safety" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Safety</div>
+      <div class="btn small" data-val="FG" data-for="Run,Pass" onclick="pick('result',this)">FG Good</div>
+    </div>
+    <div class="patBox" id="defTdBox">
+      <div class="btn small" id="defTdToggle" onclick="toggleDefTD()">↩ Returned for a Touchdown (defense)</div>
+      <div id="defTdPlayerRow" style="display:none; margin-top:8px;">
+        <label class="fieldLabel">Returner # (who scored)</label>
+        <input type="tel" id="defTdPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 34">
       </div>
-      <div class="patBox" id="defTdBox">
-        <div class="btn small" id="defTdToggle" onclick="toggleDefTD()">↩ Returned for a Touchdown (defense)</div>
-        <div id="defTdPlayerRow" style="display:none; margin-top:8px;">
-          <label class="fieldLabel">Returner # (who scored)</label>
-          <input type="tel" id="defTdPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 34">
-        </div>
+    </div>
+    <div class="patBox" id="patBox">
+      <label class="fieldLabel">After Touchdown (adds to score automatically)</label>
+      <div class="btnGrid g4">
+        <div class="btn small" data-val="pat1" onclick="pick('pat',this)">Kick +1</div>
+        <div class="btn small" data-val="pat2run" onclick="pick('pat',this)">2pt Run +2</div>
+        <div class="btn small" data-val="pat2pass" onclick="pick('pat',this)">2pt Pass +2</div>
+        <div class="btn small" data-val="patno" onclick="pick('pat',this)">No Good</div>
       </div>
-      <div class="patBox" id="patBox">
-        <label class="fieldLabel">After Touchdown (adds to score automatically)</label>
-        <div class="btnGrid g4">
-          <div class="btn small" data-val="pat1" onclick="pick('pat',this)">Kick +1</div>
-          <div class="btn small" data-val="pat2run" onclick="pick('pat',this)">2pt Run +2</div>
-          <div class="btn small" data-val="pat2pass" onclick="pick('pat',this)">2pt Pass +2</div>
-          <div class="btn small" data-val="patno" onclick="pick('pat',this)">No Good</div>
-        </div>
-        <label class="fieldLabel" style="margin-top:8px;">Scorer # (kicker for XP, ball carrier/receiver for 2pt)</label>
-        <input type="tel" id="patPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 4">
-      </div>
-    </section>
+      <label class="fieldLabel" style="margin-top:8px;">Scorer # (kicker for XP, ball carrier/receiver for 2pt)</label>
+      <input type="tel" id="patPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 4">
+    </div>
+  </section>
+
+  </div>
+
+  <div class="entryRight">
 
     <section>
       <h2>Penalty (leave blank if none)</h2>
@@ -367,49 +370,49 @@
         </div>
       </div>
     </section>
-  </div>
 
-  <section id="situationSection">
-    <h2>Result: Down / To Go / Ball On (after this play)</h2>
-    <div class="nextSituationRow">
-      <div class="centerGroup">
-        <label class="miniLabel">Down</label>
-        <div class="btnGrid g4 miniBtnGrid" id="downGrid">
-          <div class="btn" data-val="1" onclick="pick('down',this)">1</div>
-          <div class="btn" data-val="2" onclick="pick('down',this)">2</div>
-          <div class="btn" data-val="3" onclick="pick('down',this)">3</div>
-          <div class="btn" data-val="4" onclick="pick('down',this)">4</div>
-        </div>
-      </div>
-      <div class="centerGroup">
-        <label class="miniLabel">To Go</label>
-        <input type="tel" id="distance" inputmode="numeric" class="miniInput toGoInput" maxlength="2" placeholder="10" onfocus="this.select()">
-      </div>
-      <div class="centerGroup">
-        <label class="miniLabel">Ball On</label>
-        <div class="ballOnRow">
-          <div class="btnGrid g2 miniBtnGrid" id="sideGrid">
-            <div class="btn small" data-val="TKA" onclick="pick('side',this)">TKA</div>
-            <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
+    <section id="situationSection">
+      <h2>Result: Down / To Go / Ball On (after this play)</h2>
+      <div class="nextSituationRow">
+        <div class="centerGroup">
+          <label class="miniLabel">Down</label>
+          <div class="btnGrid g4 miniBtnGrid" id="downGrid">
+            <div class="btn" data-val="1" onclick="pick('down',this)">1</div>
+            <div class="btn" data-val="2" onclick="pick('down',this)">2</div>
+            <div class="btn" data-val="3" onclick="pick('down',this)">3</div>
+            <div class="btn" data-val="4" onclick="pick('down',this)">4</div>
           </div>
-          <input type="tel" id="yardLine" inputmode="numeric" class="miniInput" placeholder="25" min="0" max="50" onfocus="this.select()">
+        </div>
+        <div class="centerGroup">
+          <label class="miniLabel">To Go</label>
+          <input type="tel" id="distance" inputmode="numeric" class="miniInput toGoInput" maxlength="2" placeholder="10" onfocus="this.select()">
+        </div>
+        <div class="centerGroup">
+          <label class="miniLabel">Ball On</label>
+          <div class="ballOnRow">
+            <div class="btnGrid g2 miniBtnGrid" id="sideGrid">
+              <div class="btn small" data-val="TKA" onclick="pick('side',this)">TKA</div>
+              <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
+            </div>
+            <input type="tel" id="yardLine" inputmode="numeric" class="miniInput" placeholder="25" min="0" max="50" onfocus="this.select()">
+          </div>
         </div>
       </div>
-    </div>
-    <div class="statNote" style="margin-top:6px;">Read the real scoreboard after the play and enter what it shows — this saves with the play and sets the starting spot for the next one. TKA/OPP always means whose territory the ball is in, no matter who has the ball — e.g. if the other team punts it out at the TKA 32, enter TKA 32 here even though they were the ones who just played.</div>
-  </section>
-  <div class="statNote" id="freeKickNote" style="display:none; margin:0 0 10px;">No down/distance/spot needed here — this play is followed by a free kick. Tap the possession arrow for whoever's kicking, then log it as a Kickoff.</div>
+      <div class="statNote" style="margin-top:6px;">Read the real scoreboard after the play and enter what it shows — this saves with the play and sets the starting spot for the next one. TKA/OPP always means whose territory the ball is in, no matter who has the ball — e.g. if the other team punts it out at the TKA 32, enter TKA 32 here even though they were the ones who just played.</div>
+    </section>
+    <div class="statNote" id="freeKickNote" style="display:none; margin:0 0 10px;">No down/distance/spot needed here — this play is followed by a free kick. Tap the possession arrow for whoever's kicking, then log it as a Kickoff.</div>
 
-  <button class="logBtn" onclick="logPlay()"><span id="logBtnText">✓ LOG PLAY</span></button>
-  <div class="btn small" id="cancelEditBtn" style="display:none; text-align:center; margin-top:6px; background:var(--red); border-color:var(--red); color:#fff;" onclick="cancelEdit()">✕ Cancel Edit</div>
+    <button class="logBtn" onclick="logPlay()"><span id="logBtnText">✓ LOG PLAY</span></button>
+    <div class="btn small" id="cancelEditBtn" style="display:none; text-align:center; margin-top:6px; background:var(--red); border-color:var(--red); color:#fff;" onclick="cancelEdit()">✕ Cancel Edit</div>
 
   </div>
 
-  <div class="logCol">
-  <section>
+  </div>
+
+  <section style="margin-top:16px;">
     <h2>Play Log</h2>
     <div class="statNote" style="margin:0 0 6px;">Tap ✎ on any row (usually the last one) to correct it once you see the down/distance update on the real scoreboard — the yardage recalculates automatically.</div>
-    <div class="logWrap">
+    <div class="logWrap" style="max-height:340px;">
       <table>
         <thead>
           <tr><th></th><th>#</th><th>Team</th><th>Player</th><th>Type</th><th>Dir</th><th>Tacklers</th><th>Pen</th><th>Result</th><th>Down/Dist</th><th>Yard Line</th><th>Yds</th><th>1D</th><th>Score</th></tr>
@@ -418,9 +421,7 @@
       </table>
     </div>
   </section>
-  </div>
 
-  </div>
   </div>
 
   <div id="viewStats" style="display:none;">
