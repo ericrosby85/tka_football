@@ -147,8 +147,26 @@
   .topBtns button.export{background:var(--accent); border-color:var(--accent);}
   .topBtns button.reset{background:var(--red); border-color:var(--red);}
 
-  .tabRow{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;}
-  .tabRow .btn{padding:12px 4px; font-size:13px;}
+  .tabRow{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px;}
+  .tabRow .btn{padding:12px 2px; font-size:12px;}
+
+  .subTabRow{display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:10px;}
+  .subTabRow .btn{padding:10px 2px; font-size:12px;}
+
+  .cmpTableWrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table.cmpTable{width:100%; border-collapse:collapse; font-size:13px;}
+  table.cmpTable th, table.cmpTable td{padding:6px 8px; border-bottom:1px solid var(--border); text-align:center; white-space:nowrap;}
+  table.cmpTable th.statLabel, table.cmpTable td.statLabel{text-align:left; white-space:normal;}
+  table.cmpTable thead th{background:var(--card2); position:sticky; top:0;}
+  table.cmpTable .tkaCol{color:var(--accent);}
+  table.cmpTable .oppCol{color:var(--red);}
+  .scoringPlayRow{display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:14px;}
+  .scoringPlayRow:last-child{border-bottom:none;}
+  .scoringPlayRow .sTeam{font-weight:700; flex:0 0 auto;}
+  .scoringPlayRow .sDesc{flex:1 1 auto;}
+  .scoringPlayRow .sPts{flex:0 0 auto; font-weight:700;}
+  .driveChartCols{display:grid; grid-template-columns:1fr; gap:14px;}
+  @media (min-width:900px){ .driveChartCols{grid-template-columns:1fr 1fr;} }
 
   .statsGrid{display:grid; grid-template-columns:1fr; gap:10px;}
   @media (min-width:820px){ .statsGrid{grid-template-columns:1fr 1fr;} }
@@ -240,6 +258,7 @@
     <div class="btn" id="tabStats" onclick="showView('stats')">📊 Box Score</div>
     <div class="btn" id="tabPlayers" onclick="showView('players')">🏈 Player Stats</div>
     <div class="btn" id="tabRoster" onclick="showView('roster')">👤 Roster</div>
+    <div class="btn" id="tabAdvanced" onclick="showView('advanced')">📈 Advanced</div>
   </div>
 
   <div id="viewPlays">
@@ -308,6 +327,13 @@
         <div class="btn small" data-val="Safety" data-for="Run,Pass,Kickoff,Punt" onclick="pick('result',this)">Safety</div>
         <div class="btn small" data-val="FG" data-for="Run,Pass" onclick="pick('result',this)">FG Good</div>
       </div>
+      <div class="patBox" id="defTdBox">
+        <div class="btn small" id="defTdToggle" onclick="toggleDefTD()">↩ Returned for a Touchdown (defense)</div>
+        <div id="defTdPlayerRow" style="display:none; margin-top:8px;">
+          <label class="fieldLabel">Returner # (who scored)</label>
+          <input type="tel" id="defTdPlayerNum" inputmode="numeric" maxlength="2" placeholder="e.g. 34">
+        </div>
+      </div>
       <div class="patBox" id="patBox">
         <label class="fieldLabel">After Touchdown (adds to score automatically)</label>
         <div class="btnGrid g4">
@@ -357,7 +383,7 @@
       </div>
       <div class="centerGroup">
         <label class="miniLabel">To Go</label>
-        <input type="tel" id="distance" inputmode="numeric" class="miniInput toGoInput" maxlength="2" placeholder="10">
+        <input type="tel" id="distance" inputmode="numeric" class="miniInput toGoInput" maxlength="2" placeholder="10" onfocus="this.select()">
       </div>
       <div class="centerGroup">
         <label class="miniLabel">Ball On</label>
@@ -366,7 +392,7 @@
             <div class="btn small" data-val="TKA" onclick="pick('side',this)">TKA</div>
             <div class="btn small" data-val="OPP" onclick="pick('side',this)">OPP</div>
           </div>
-          <input type="tel" id="yardLine" inputmode="numeric" class="miniInput" placeholder="25" min="0" max="50">
+          <input type="tel" id="yardLine" inputmode="numeric" class="miniInput" placeholder="25" min="0" max="50" onfocus="this.select()">
         </div>
       </div>
     </div>
@@ -432,6 +458,10 @@
       <h2>Kicking / PAT-2pt</h2>
       <div id="playerKickingTable"></div>
     </section>
+    <section>
+      <h2>Defensive/Return TDs</h2>
+      <div id="playerDefTable"></div>
+    </section>
   </div>
 
   <div id="viewRoster" style="display:none;">
@@ -445,6 +475,58 @@
       <h2>Saved Roster</h2>
       <div id="rosterPreview"></div>
     </section>
+  </div>
+
+  <div id="viewAdvanced" style="display:none;">
+    <div class="subTabRow">
+      <div class="btn" id="advTab3rd" onclick="showAdvSection('third')">3rd Down</div>
+      <div class="btn" id="advTab1st" onclick="showAdvSection('first')">1st Down</div>
+      <div class="btn" id="advTabScoring" onclick="showAdvSection('scoring')">Scoring</div>
+      <div class="btn" id="advTabDrive" onclick="showAdvSection('drive')">Drive Chart</div>
+    </div>
+
+    <div id="advThird" style="display:none;">
+      <section>
+        <h2>3rd Down Efficiency</h2>
+        <div class="statNote" style="margin-top:0;">Compares both teams on plays run specifically on 3rd down. "Conversion" means gaining enough to move the sticks, scoring a TD, or a defensive penalty that gave an automatic first down.</div>
+        <div class="cmpTableWrap" id="advThirdTable"></div>
+      </section>
+    </div>
+
+    <div id="advFirst" style="display:none;">
+      <section>
+        <h2>1st Down Efficiency</h2>
+        <div class="statNote" style="margin-top:0;">Compares both teams on plays run specifically on 1st down.</div>
+        <div class="cmpTableWrap" id="advFirstTable"></div>
+      </section>
+    </div>
+
+    <div id="advScoring" style="display:none;">
+      <section>
+        <h2>Scoring Plays</h2>
+        <div id="scoringPlaysList"></div>
+      </section>
+      <section>
+        <h2>Score by Quarter</h2>
+        <div class="cmpTableWrap" id="scoreByQuarterTable"></div>
+      </section>
+      <section>
+        <h2>Scoring Comparison</h2>
+        <div class="cmpTableWrap" id="scoringComparisonTable"></div>
+      </section>
+    </div>
+
+    <div id="advDrive" style="display:none;">
+      <section>
+        <h2>Drive Chart</h2>
+        <div class="statNote" style="margin-top:0;">Drives are grouped from the play log automatically. Since the app doesn't capture the game clock, Time and Time-of-Possession columns aren't shown.</div>
+        <div class="driveChartCols" id="driveChartContainer"></div>
+      </section>
+      <section>
+        <h2>Drive Statistics</h2>
+        <div class="driveChartCols" id="driveStatsContainer"></div>
+      </section>
+    </div>
   </div>
 
 </div>
@@ -527,8 +609,9 @@ function archiveCurrentGame(){
 // ordered list, oldest first, for the Player Stats tab's per-game columns.
 function getGamesList(){
   const games = loadHistory().map(g=>({
+    id: g.id,
     label: `${g.date} — ${g.teamA} ${g.scoreA}-${g.scoreB} ${g.teamB}`,
-    teamA: g.teamA, teamB: g.teamB, scoreA: g.scoreA, scoreB: g.scoreB, plays: g.plays, isCurrent: false
+    teamA: g.teamA, teamB: g.teamB, scoreA: g.scoreA, scoreB: g.scoreB, plays: g.plays, isCurrent: false, date: g.date
   }));
   if(state.plays.length>0){
     games.push({
@@ -700,18 +783,45 @@ function pick(field, el){
   entry[field] = el.dataset.val;
 
   if(field==='result'){
-    document.getElementById('patBox').classList.toggle('show', el.dataset.val==='TD');
     if(el.dataset.val!=='TD') delete entry.pat;
 
-    // TD/Safety/FG are always followed by a free kick (kickoff), not a normal down —
-    // so the Down/To Go/Ball On section doesn't apply to the play itself.
-    const followedByFreeKick = ['TD','Safety','FG'].includes(el.dataset.val);
-    document.getElementById('situationSection').style.display = followedByFreeKick ? 'none' : '';
-    document.getElementById('freeKickNote').style.display = followedByFreeKick ? '' : 'none';
+    // A defensive return TD only ever applies right after picking a turnover result —
+    // reset it whenever the result changes so it can't linger from a previous selection.
+    entry.defTD = false;
+    document.getElementById('defTdToggle').classList.remove('selGreen');
+    document.getElementById('defTdPlayerRow').style.display = 'none';
+    document.getElementById('defTdPlayerNum').value = '';
+    document.getElementById('defTdBox').classList.toggle('show', ['Interception','Fumble','Turnover'].includes(el.dataset.val));
+
+    updateFreeKickVisibility();
   }
   if(field==='type'){
     updateConditionalFields();
+    // Tackled is the overwhelming default outcome for a run — auto-pick it so Result only
+    // needs a tap when something unusual happened (TFL, fumble, TD, etc). Skip if a result
+    // was already chosen (e.g. re-tapping Run after picking something else on purpose).
+    if(el.dataset.val==='Run' && !entry.result){
+      const tackledBtn = document.querySelector('#resultGrid .btn[data-val="Tackled"]');
+      if(tackledBtn) pick('result', tackledBtn);
+    }
   }
+}
+
+// TD/Safety/FG, and a turnover that's flagged as returned for a defensive touchdown, are
+// always followed by a free kick — not a normal down — so the Down/To Go/Ball On section
+// doesn't apply, and the PAT box (score-adding, kicker/scorer #) does.
+function updateFreeKickVisibility(){
+  const followedByFreeKick = ['TD','Safety','FG'].includes(entry.result) || !!entry.defTD;
+  document.getElementById('patBox').classList.toggle('show', entry.result==='TD' || !!entry.defTD);
+  document.getElementById('situationSection').style.display = followedByFreeKick ? 'none' : '';
+  document.getElementById('freeKickNote').style.display = followedByFreeKick ? '' : 'none';
+}
+
+function toggleDefTD(){
+  entry.defTD = !entry.defTD;
+  document.getElementById('defTdToggle').classList.toggle('selGreen', entry.defTD);
+  document.getElementById('defTdPlayerRow').style.display = entry.defTD ? 'block' : 'none';
+  updateFreeKickVisibility();
 }
 
 function showToast(msg){
@@ -740,6 +850,8 @@ function logPlay(){
   const passer = document.getElementById('passerNum').value.trim();
   const tackler1 = document.getElementById('tackler1').value.trim();
   const tackler2 = document.getElementById('tackler2').value.trim();
+  const defTD = !!entry.defTD;
+  const defTdPlayer = document.getElementById('defTdPlayerNum').value.trim();
 
   const offenseSide = state.possession; // 'A' or 'B'
   const defenseSide = offenseSide==='A' ? 'B' : 'A';
@@ -753,6 +865,12 @@ function logPlay(){
     scoreDelta[offenseSide]+=3;
   } else if(result==='Safety'){
     scoreDelta[defenseSide]+=2;
+  } else if(defTD){
+    // A turnover that got housed by the defense — same PAT/2pt scoring as an offensive TD,
+    // just credited to the team that recovered it instead of the team that turned it over.
+    scoreDelta[defenseSide]+=6;
+    if(pat==='pat1') scoreDelta[defenseSide]+=1;
+    else if(pat==='pat2run'||pat==='pat2pass') scoreDelta[defenseSide]+=2;
   }
 
   if(editingIndex!==null){
@@ -767,7 +885,7 @@ function logPlay(){
   const play = {
     quarter: state.quarter,
     offenseTeam: offenseSide==='A' ? state.teamA : state.teamB,
-    offenseSide, playerNum, type, dir, result, pat, patPlayer,
+    offenseSide, playerNum, type, dir, result, pat, patPlayer, defTD, defTdPlayer,
     passer, tackler1, tackler2,
     down, distance, side, yardLineNum,
     hasPenalty: penYards>0,
@@ -803,7 +921,10 @@ function logPlay(){
   renderScoreboard();
   renderLog();
 
-  const driveEnds = ['TD','FG','Safety','Turnover','Interception','Fumble','Punt'].includes(result);
+  // TD/FG/Safety (and a defensive return TD) are followed by a free kick, not a normal down,
+  // so the entered spot doesn't carry forward — everything else (including a plain turnover
+  // recovery) carries forward, since the coach already entered the recovering team's spot.
+  const driveEnds = ['TD','FG','Safety'].includes(result) || result==='Punt' || defTD;
   clearEntry();
   if(!driveEnds){
     // Carry the down/distance/yard-line forward as the starting point for the next play —
@@ -819,7 +940,7 @@ function logPlay(){
   }
   save();
   restoreCurrentSituation();
-  const followedByFreeKick = ['TD','Safety','FG'].includes(result);
+  const followedByFreeKick = ['TD','Safety','FG'].includes(result) || defTD;
   showToast(
     result==='Punt' ? 'Punt logged — possession flipped (tap the arrow if it was recovered)' :
     followedByFreeKick ? 'Logged — tap the possession arrow for whoever\'s kicking, then log the free kick as a Kickoff' :
@@ -866,6 +987,10 @@ function editPlay(index){
   setBtn('sideGrid', p.side);
   setBtn('penOnGrid', p.penOn);
   setBtn('resultGrid', p.result);
+  if(p.defTD){
+    toggleDefTD();
+    document.getElementById('defTdPlayerNum').value = p.defTdPlayer || '';
+  }
   if(p.pat){
     const patBtn = [...document.querySelectorAll('#patBox .btn')].find(b=>b.dataset.val===p.pat);
     if(patBtn) pick('pat', patBtn);
@@ -936,6 +1061,10 @@ function clearEntry(){
   document.getElementById('penaltyType').value='';
   document.getElementById('patPlayerNum').value='';
   document.getElementById('patBox').classList.remove('show');
+  document.getElementById('defTdPlayerNum').value='';
+  document.getElementById('defTdToggle').classList.remove('selGreen');
+  document.getElementById('defTdPlayerRow').style.display='none';
+  document.getElementById('defTdBox').classList.remove('show');
   document.getElementById('situationSection').style.display='';
   document.getElementById('freeKickNote').style.display='none';
   ['typeGrid','dirGrid','resultGrid','downGrid','penOnGrid','sideGrid'].forEach(id=>{
@@ -1004,7 +1133,7 @@ function yardLineAbs(side, num){
 // derive yards-gained and first-down conversions purely from each play's down/distance/yard-line entries.
 function walkPlays(playsArr){
   playsArr = playsArr || state.plays;
-  let carryPos = 25, carryDown = null;
+  let carryPos = 25, carryDown = null, carryDistance = null;
   const rows = [];
   playsArr.forEach(play=>{
     const off = play.offenseSide;
@@ -1058,17 +1187,297 @@ function walkPlays(playsArr){
       }
     }
 
-    rows.push({play, off, def, beforePos, afterPos:afterPosRaw, yardsOnPlay, isFirstDown, fdType});
+    // The down/distance THIS play was actually run on — i.e. what was carried forward from
+    // the previous play's own entry — not p.down/p.distance (which describe the *result*).
+    // Useful for 3rd/1st Down Efficiency, which need to know the situation before the snap.
+    const beforeDown = carryDown;
+    const beforeDistance = carryDistance;
+    // How many yards from here to the scoring goal line, in the fixed TKA/OPP frame — lets us
+    // detect a goal-to-go snap (distance-to-go equals distance-to-goal) without a "G" marker.
+    const toGoalYds = off==='A' ? (100 - beforePos) : beforePos;
+
+    rows.push({play, off, def, beforePos, afterPos:afterPosRaw, yardsOnPlay, isFirstDown, fdType, beforeDown, beforeDistance, toGoalYds});
 
     if(possessionEnds){
       carryPos = (afterPosRaw!=null) ? afterPosRaw : 25;
       carryDown = play.down ? parseInt(play.down,10) : null;
+      carryDistance = play.distance ? parseInt(play.distance,10) : null;
     } else {
       carryPos = (afterPosRaw!=null) ? afterPosRaw : beforePos;
       if(play.down) carryDown = parseInt(play.down,10);
+      if(play.distance) carryDistance = parseInt(play.distance,10);
     }
   });
   return rows;
+}
+
+// Converts an absolute 0-100 field position (0 = TKA's own goal line, 100 = the opponent's)
+// back into a human-readable "TKA X" / "OPP X" spot, for drive-chart display.
+function absToSpotLabel(abs){
+  if(abs==null || isNaN(abs)) return '—';
+  const n = Math.round(abs);
+  return n<=50 ? `TKA ${n}` : `OPP ${100-n}`;
+}
+
+// Groups the play log into drives (consecutive plays by the same team), for the Drive Chart.
+// Kickoffs/punts aren't plays *within* a drive — they're the transition marking how the next
+// drive begins — so they set "how" for the upcoming drive rather than belonging to one.
+function computeDrives(plays){
+  const rows = walkPlays(plays);
+  const drives = [];
+  let current = null;
+  let pendingHow = 'Start of Game';
+  let lastPlayedRow = null; // last row actually belonging to a drive (skips kickoffs/punts/pre-snap)
+
+  function closeDrive(row, resultLabel, endAbsOverride){
+    if(!current || !row) return;
+    current.endQuarter = row.play.quarter || current.startQuarter;
+    current.endAbs = (endAbsOverride!=null) ? endAbsOverride : row.afterPos;
+    current.result = resultLabel;
+  }
+
+  rows.forEach(r=>{
+    const p = r.play;
+    if(p.isPreSnap) return; // pre-snap penalties don't consume a down or move the ball
+
+    const isKickoff = p.type==='Kickoff';
+    const isPunt = p.type==='Punt' || p.result==='Punt';
+
+    if(isKickoff || isPunt){
+      // Doesn't belong to any drive itself. A punt also closes out the punting team's own
+      // drive right here (at the snap spot, not the landing spot) — nothing else would
+      // otherwise mark that their drive just ended.
+      if(current && isPunt){
+        closeDrive(r, 'Punt', r.beforePos);
+        current = null;
+      }
+      pendingHow = isKickoff ? 'Kickoff' : 'Punt';
+      return;
+    }
+
+    if(!current || current.team!==p.offenseSide){
+      // Either the very first drive, or possession changed with no kickoff/punt/turnover in
+      // between — which can only mean a turnover on downs (or a manual possession flip).
+      if(current){
+        closeDrive(lastPlayedRow, 'Downs');
+        pendingHow = 'Downs';
+      }
+      current = {
+        team: p.offenseSide, how: pendingHow,
+        startQuarter: p.quarter || 1, startAbs: r.beforePos,
+        endQuarter: null, endAbs: null, result: null,
+        plays: [], yards: 0
+      };
+      drives.push(current);
+    }
+
+    current.plays.push(r);
+    if(r.yardsOnPlay!=null) current.yards += r.yardsOnPlay;
+    lastPlayedRow = r;
+
+    const isTurnover = ['Turnover','Interception','Fumble'].includes(p.result);
+    if(isTurnover){
+      closeDrive(r, p.defTD ? 'Turnover (returned for TD)' : 'Turnover');
+      pendingHow = p.defTD ? 'Kickoff' : 'Turnover'; // a defensive TD still needs a free kick after
+      current = null;
+    } else if(p.result==='TD'){
+      closeDrive(r, 'Touchdown', p.offenseSide==='A' ? 100 : 0);
+      pendingHow = 'Kickoff';
+      current = null;
+    } else if(p.result==='Safety'){
+      closeDrive(r, 'Safety', p.offenseSide==='A' ? 0 : 100);
+      pendingHow = 'Kickoff';
+      current = null;
+    } else if(p.result==='FG'){
+      closeDrive(r, 'Field Goal', r.beforePos);
+      pendingHow = 'Kickoff';
+      current = null;
+    } else if(p.defTD){
+      // Defensive TD off a non-turnover-labeled result shouldn't normally happen, but guard anyway.
+      closeDrive(r, 'Turnover (returned for TD)');
+      pendingHow = 'Kickoff';
+      current = null;
+    }
+  });
+
+  if(current){
+    closeDrive(lastPlayedRow, 'End of Game/Half');
+  }
+
+  return drives;
+}
+
+// Aggregates every play run on a given down (3rd, 1st, etc.) for both teams, powering the
+// Advanced Stats "3rd Down Efficiency" / "1st Down Efficiency" tabs. r.beforeDown is the down
+// the play was actually snapped on (not the down entered as this play's result), so this
+// correctly isolates "plays run on 3rd down" regardless of what happened next.
+function computeDownEfficiency(rows, downNum){
+  const blank = ()=>({
+    atts:0, conv:0, convByPen:0, distSum:0, distCount:0, longs:0, shorts:0, goals:0,
+    ydsSum:0, tds:0, turnovers:0,
+    rushAtt:0, rushYds:0, rushConv:0,
+    passAtt:0, passComp:0, passYds:0, passConv:0,
+    sacks:0, sackYds:0,
+    penOppCount:0, penOppYds:0, penOffCount:0, penOffYds:0
+  });
+  const out = {A:blank(), B:blank()};
+
+  rows.forEach(r=>{
+    const p = r.play;
+    if(p.isPreSnap) return;
+    if(p.type==='Kickoff' || p.type==='Punt' || p.result==='Punt') return;
+    if(r.beforeDown !== downNum) return;
+
+    const st = out[r.off];
+    const isTurnover = TURNOVER_RESULTS.includes(p.result);
+    const isTD = p.result==='TD';
+    const yds = r.yardsOnPlay || 0;
+    const dist = r.beforeDistance;
+
+    st.atts++;
+    if(dist!=null){
+      st.distSum += dist; st.distCount++;
+      if(dist>=9) st.longs++;
+      if(dist>=1 && dist<=4) st.shorts++;
+      if(r.toGoalYds!=null && r.toGoalYds<=dist) st.goals++;
+    }
+    if(!p.hasPenalty && !isTurnover && p.result!=='Incomplete') st.ydsSum += yds;
+    if(isTD) st.tds++;
+    if(isTurnover) st.turnovers++;
+
+    const convByPenalty = p.hasPenalty && p.penOn==='Defense';
+    const convByYardage = (dist!=null) && !isTurnover && p.result!=='Incomplete' && yds>=dist;
+    // "converted" (the overall down-conversion count) includes penalty-awarded first downs, but
+    // the by-Rush/by-Pass attribution columns should only credit an actual rush/pass conversion —
+    // a penalty already has its own "Conversions by Penalty" column and shouldn't double up here.
+    const convertedByPlay = isTD || convByYardage;
+    const converted = convertedByPlay || convByPenalty;
+    if(converted) st.conv++;
+    if(convByPenalty) st.convByPen++;
+
+    if(p.hasPenalty){
+      if(p.penOn==='Defense'){ st.penOppCount++; st.penOppYds += (p.penYards||0); }
+      else if(p.penOn==='Offense'){ st.penOffCount++; st.penOffYds += (p.penYards||0); }
+    }
+
+    if(p.type==='Run'){
+      st.rushAtt++;
+      if(!p.hasPenalty && !isTurnover) st.rushYds += yds;
+      if(convertedByPlay) st.rushConv++;
+    } else if(p.type==='Pass'){
+      if(p.result==='Sack'){
+        st.sacks++; st.sackYds += Math.max(0, -yds);
+      } else {
+        st.passAtt++;
+        if(p.result==='CompletePass' || isTD) st.passComp++;
+        if(!p.hasPenalty && !isTurnover) st.passYds += yds;
+        if(convertedByPlay) st.passConv++;
+      }
+    }
+  });
+
+  return out;
+}
+
+// Every scoring play in the game (TD/FG/Safety/defensive-return TD), in order, with a
+// human-readable description and the point value including any PAT/2pt add-on.
+function computeScoringPlays(rows){
+  const out = [];
+  rows.forEach(r=>{
+    const p = r.play;
+    if(p.isPreSnap) return;
+    let team=null, kind=null, desc=null, points=0;
+
+    if(p.defTD){
+      team = r.def; kind = 'Defensive TD';
+      desc = `Defensive TD by #${p.defTdPlayer||'?'}`;
+      points = 6;
+    } else if(p.result==='TD'){
+      team = r.off;
+      if(p.type==='Kickoff' || p.type==='Punt'){
+        kind = 'Special Teams TD';
+        desc = `${p.type} Return TD by #${p.playerNum||'?'}`;
+      } else if(p.type==='Pass'){
+        kind = 'Offensive TD';
+        desc = `Pass TD, #${p.passer||'?'} to #${p.playerNum||'?'}`;
+      } else {
+        kind = 'Offensive TD';
+        desc = `Run TD by #${p.playerNum||'?'}`;
+      }
+      points = 6;
+    } else if(p.result==='FG'){
+      team = r.off; kind = 'Field Goal';
+      desc = `Field Goal by #${p.playerNum||'?'}`;
+      points = 3;
+    } else if(p.result==='Safety'){
+      team = r.def; kind = 'Safety';
+      desc = 'Safety';
+      points = 2;
+    }
+
+    if(!team) return;
+
+    if(p.result==='TD' || p.defTD){
+      if(p.pat==='pat1'){ points += 1; desc += ` + PAT by #${p.patPlayer||'?'} good`; }
+      else if(p.pat==='pat2run' || p.pat==='pat2pass'){ points += 2; desc += ` + 2pt (${p.pat==='pat2run'?'run':'pass'}) by #${p.patPlayer||'?'} good`; }
+      else if(p.pat==='patno'){ desc += ' + PAT/2pt no good'; }
+    }
+
+    out.push({quarter: p.quarter||1, team, kind, desc, points});
+  });
+  return out;
+}
+
+function computeScoreByQuarter(scoringPlays){
+  const out = {A:{}, B:{}};
+  scoringPlays.forEach(sp=>{
+    const q = sp.quarter || 1;
+    out[sp.team][q] = (out[sp.team][q]||0) + sp.points;
+  });
+  return out;
+}
+
+// TDs/FGs/Def-TD/ST-TD totals plus "points off turnovers" (points scored on a drive that began
+// because the OTHER team turned the ball over), for the Scoring tab's team comparison.
+function computeScoringComparison(stats, drives){
+  const out = {
+    A: {tds: stats.A.game.td, fgs: stats.A.game.fg, defTds: stats.A.game.defTds, stTds: stats.A.game.stTds, ptsOffTO: 0},
+    B: {tds: stats.B.game.td, fgs: stats.B.game.fg, defTds: stats.B.game.defTds, stTds: stats.B.game.stTds, ptsOffTO: 0}
+  };
+  drives.forEach(d=>{
+    if(d.how!=='Turnover') return;
+    let pts = 0;
+    if(d.result==='Touchdown') pts = 6;
+    else if(d.result==='Field Goal') pts = 3;
+    if(pts>0) out[d.team].ptsOffTO += pts;
+  });
+  return out;
+}
+
+// Per-team drive summary stats for the Drive Chart tab. thirdDownEff is the output of
+// computeDownEfficiency(rows, 3), reused here so "Avg 3rd Down Distance" doesn't need its own pass.
+function computeDriveStats(drives, thirdDownEff){
+  const blank = ()=>({total:0, scoring:0, startSum:0, ydsSum:0, playsSum:0, big70:0, tenPlus:0,
+    ptsOffTO:0, threeAndOut:0, success:0, tdDrives:0});
+  const out = {A:blank(), B:blank()};
+  drives.forEach(d=>{
+    const st = out[d.team];
+    st.total++;
+    st.startSum += (d.startAbs||0);
+    st.ydsSum += (d.yards||0);
+    st.playsSum += d.plays.length;
+    if(d.yards>=70) st.big70++;
+    if(d.plays.length>=10) st.tenPlus++;
+    if(d.result==='Touchdown'){ st.scoring++; st.tdDrives++; st.ptsOffTO += (d.how==='Turnover'?6:0); }
+    else if(d.result==='Field Goal'){ st.scoring++; st.ptsOffTO += (d.how==='Turnover'?3:0); }
+    if(d.result==='Punt' && d.plays.length===3) st.threeAndOut++;
+    const anyFirstDown = d.plays.some(r=>r.isFirstDown);
+    if(anyFirstDown || d.result==='Touchdown' || d.result==='Field Goal') st.success++;
+  });
+  ['A','B'].forEach(side=>{
+    out[side].avg3rdDist = thirdDownEff[side].distCount>0 ? (thirdDownEff[side].distSum/thirdDownEff[side].distCount) : null;
+  });
+  return out;
 }
 
 function computeStats(){
@@ -1076,7 +1485,7 @@ function computeStats(){
     sacks:0, sackYds:0, tfl:0,
     fdTotal:0, fdRush:0, fdPass:0, fdPen:0, penalties:0, penYds:0,
     turnovers:0, interceptions:0, fumblesLost:0, turnoverOther:0,
-    td:0, fg:0, safety:0, punts:0, kickoffs:0, touchbacks:0});
+    td:0, offTds:0, defTds:0, stTds:0, fg:0, safety:0, punts:0, kickoffs:0, touchbacks:0});
   const stats = {
     A:{q1:blank(),q2:blank(),q3:blank(),q4:blank(),h1:blank(),h2:blank(),game:blank()},
     B:{q1:blank(),q2:blank(),q3:blank(),q4:blank(),h1:blank(),h2:blank(),game:blank()}
@@ -1136,7 +1545,15 @@ function computeStats(){
     if(p.result==='Interception') add(off,q,'interceptions',1);
     if(p.result==='Fumble') add(off,q,'fumblesLost',1);
     if(p.result==='Turnover') add(off,q,'turnoverOther',1);
-    if(p.result==='TD') add(off,q,'td',1);
+    if(p.result==='TD'){
+      add(off,q,'td',1);
+      if(p.type==='Kickoff' || p.type==='Punt') add(off,q,'stTds',1);
+      else add(off,q,'offTds',1);
+    }
+    if(p.defTD){
+      add(def,q,'td',1);
+      add(def,q,'defTds',1);
+    }
     if(p.result==='FG') add(off,q,'fg',1);
     if(p.result==='Safety') add(def,q,'safety',1);
   });
@@ -1188,13 +1605,188 @@ function showView(view){
   document.getElementById('viewStats').style.display = view==='stats' ? '' : 'none';
   document.getElementById('viewPlayers').style.display = view==='players' ? '' : 'none';
   document.getElementById('viewRoster').style.display = view==='roster' ? '' : 'none';
+  document.getElementById('viewAdvanced').style.display = view==='advanced' ? '' : 'none';
   document.getElementById('tabPlays').classList.toggle('sel', view==='plays');
   document.getElementById('tabStats').classList.toggle('sel', view==='stats');
   document.getElementById('tabPlayers').classList.toggle('sel', view==='players');
   document.getElementById('tabRoster').classList.toggle('sel', view==='roster');
+  document.getElementById('tabAdvanced').classList.toggle('sel', view==='advanced');
   if(view==='stats') renderStats();
   if(view==='players') renderPlayerStats();
   if(view==='roster') renderRosterPreview();
+  if(view==='advanced') showAdvSection(currentAdvSection || 'third');
+}
+
+let currentAdvSection = 'third';
+function showAdvSection(section){
+  currentAdvSection = section;
+  document.getElementById('advThird').style.display = section==='third' ? '' : 'none';
+  document.getElementById('advFirst').style.display = section==='first' ? '' : 'none';
+  document.getElementById('advScoring').style.display = section==='scoring' ? '' : 'none';
+  document.getElementById('advDrive').style.display = section==='drive' ? '' : 'none';
+  document.getElementById('advTab3rd').classList.toggle('sel', section==='third');
+  document.getElementById('advTab1st').classList.toggle('sel', section==='first');
+  document.getElementById('advTabScoring').classList.toggle('sel', section==='scoring');
+  document.getElementById('advTabDrive').classList.toggle('sel', section==='drive');
+  if(section==='third') renderDownEfficiencyTable('advThirdTable', 3);
+  if(section==='first') renderDownEfficiencyTable('advFirstTable', 1);
+  if(section==='scoring') renderScoringTab();
+  if(section==='drive') renderDriveChartTab();
+}
+
+function fmtAvg(n){
+  return (n==null || isNaN(n)) ? '—' : n.toFixed(1);
+}
+
+function renderComparisonTable(containerId, rowsSpec, dataBySide){
+  const container = document.getElementById(containerId);
+  let out = `<table class="cmpTable"><thead><tr><th class="statLabel">Stat</th><th class="tkaCol">${state.teamA}</th><th class="oppCol">${state.teamB}</th></tr></thead><tbody>`;
+  rowsSpec.forEach(([label, fn])=>{
+    out += `<tr><td class="statLabel">${label}</td><td>${fn(dataBySide.A)}</td><td>${fn(dataBySide.B)}</td></tr>`;
+  });
+  out += '</tbody></table>';
+  container.innerHTML = out;
+}
+
+function renderDownEfficiencyTable(containerId, downNum){
+  const rows = walkPlays();
+  const eff = computeDownEfficiency(rows, downNum);
+
+  const rowsSpec3 = [
+    [`${downNum}rd/th Down Attempts`, b=>b.atts],
+    [`${downNum}rd/th Down Conversions`, b=>b.conv],
+    ['Conversion %', b=>b.atts>0 ? Math.round(b.conv/b.atts*100)+'%' : '—'],
+    ['Avg Distance To Go', b=>fmtAvg(b.distCount>0 ? b.distSum/b.distCount : null)],
+    ['3rd and Longs (9+ yds)', b=>b.longs],
+    ['3rd and Short (1-4 yds)', b=>b.shorts],
+    ['3rd and Goals', b=>b.goals],
+    ['Avg Yds Gained/Att', b=>fmtAvg(b.atts>0 ? b.ydsSum/b.atts : null)],
+    ['Passing: C-A-Y', b=>`${b.passComp}-${b.passAtt}-${b.passYds}`],
+    ['1st Downs by Pass', b=>b.passConv],
+    ['Avg Yds (per Comp)', b=>fmtAvg(b.passComp>0 ? b.passYds/b.passComp : null)],
+    ['Avg Yds (per Att)', b=>fmtAvg(b.passAtt>0 ? b.passYds/b.passAtt : null)],
+    ['Sacked (Yds)', b=>`${b.sacks}-${b.sackYds}`],
+    ['Rushes - Yds', b=>`${b.rushAtt}-${b.rushYds}`],
+    ['1st Downs by Rush', b=>b.rushConv],
+    ['Avg Yds (Per Rush)', b=>fmtAvg(b.rushAtt>0 ? b.rushYds/b.rushAtt : null)],
+    ['Conversions by Penalty', b=>b.convByPen],
+    ['Penalties - Yds by Opp', b=>`${b.penOppCount}-${b.penOppYds}`],
+    [`Off ${downNum}rd/th Down Pens - Yds`, b=>`${b.penOffCount}-${b.penOffYds}`],
+    [`${downNum}rd/th Down Turnovers`, b=>b.turnovers],
+    [`${downNum}rd/th Down Touchdowns`, b=>b.tds]
+  ];
+
+  const rowsSpec1 = [
+    ['1st Down Plays', b=>b.atts],
+    ['1st Down Total Yards', b=>b.ydsSum],
+    ['1st Down Avg Gain', b=>fmtAvg(b.atts>0 ? b.ydsSum/b.atts : null)],
+    ['1st Down Rush Att-Yds', b=>`${b.rushAtt}-${b.rushYds}`],
+    ['1st Down Pass C-A-Yds', b=>`${b.passComp}-${b.passAtt}-${b.passYds}`],
+    ['1st Down Sacked (Yds)', b=>`${b.sacks}-${b.sackYds}`],
+    ['1st Down Penalties - Yds by Opp', b=>`${b.penOppCount}-${b.penOppYds}`],
+    ['1st Down Off Penalties - Yds', b=>`${b.penOffCount}-${b.penOffYds}`],
+    ['1st Downs Made', b=>b.conv],
+    ['1st Down Turnovers', b=>b.turnovers],
+    ['1st Down Touchdowns', b=>b.tds]
+  ];
+
+  renderComparisonTable(containerId, downNum===3 ? rowsSpec3 : rowsSpec1, eff);
+}
+
+function renderScoringTab(){
+  const rows = walkPlays();
+  const scoringPlays = computeScoringPlays(rows);
+  const drives = computeDrives();
+  const stats = computeStats();
+
+  const listEl = document.getElementById('scoringPlaysList');
+  if(scoringPlays.length===0){
+    listEl.innerHTML = '<div class="statNote" style="margin:0;">No scoring plays logged yet.</div>';
+  } else {
+    let out = '';
+    scoringPlays.forEach(sp=>{
+      const teamName = sp.team==='A' ? state.teamA : state.teamB;
+      const cls = sp.team==='A' ? 'tkaCol' : 'oppCol';
+      out += `<div class="scoringPlayRow"><span class="sTeam ${cls}">Q${sp.quarter} — ${teamName}</span><span class="sDesc">${sp.kind}: ${sp.desc}</span><span class="sPts">${sp.points} pts</span></div>`;
+    });
+    listEl.innerHTML = out;
+  }
+
+  const byQ = computeScoreByQuarter(scoringPlays);
+  const quarters = [1,2,3,4];
+  let qOut = `<table class="cmpTable"><thead><tr><th class="statLabel">Team</th>`;
+  quarters.forEach(q=>qOut+=`<th>Q${q}</th>`);
+  qOut += `<th>Total</th></tr></thead><tbody>`;
+  ['A','B'].forEach(side=>{
+    const teamName = side==='A' ? state.teamA : state.teamB;
+    qOut += `<tr><td class="statLabel">${teamName}</td>`;
+    let total = 0;
+    quarters.forEach(q=>{ const v = byQ[side][q]||0; total+=v; qOut += `<td>${v}</td>`; });
+    qOut += `<td><b>${total}</b></td></tr>`;
+  });
+  qOut += '</tbody></table>';
+  document.getElementById('scoreByQuarterTable').innerHTML = qOut;
+
+  const comp = computeScoringComparison(stats, drives);
+  renderComparisonTable('scoringComparisonTable', [
+    ['Touchdowns', b=>b.tds],
+    ['Field Goals', b=>b.fgs],
+    ['Points off Turnovers', b=>b.ptsOffTO],
+    ['Defensive TDs', b=>b.defTds],
+    ['Special Teams TDs', b=>b.stTds]
+  ], comp);
+}
+
+function renderDriveChartTab(){
+  const rows = walkPlays();
+  const drives = computeDrives();
+  const eff3 = computeDownEfficiency(rows, 3);
+  const driveStats = computeDriveStats(drives, eff3);
+
+  let chartOut = '';
+  ['A','B'].forEach(side=>{
+    const teamName = side==='A' ? state.teamA : state.teamB;
+    const cls = side==='A' ? 'tka' : 'opp';
+    const teamDrives = drives.filter(d=>d.team===side);
+    chartOut += `<div class="statPanel ${cls}"><h3>${teamName} Drives</h3><div class="cmpTableWrap"><table class="cmpTable"><thead><tr>
+      <th class="statLabel">#</th><th>Started (Spot / Qtr / How)</th><th>Ended (Spot / Qtr / Result)</th><th>Plays-Yds</th>
+      </tr></thead><tbody>`;
+    if(teamDrives.length===0){
+      chartOut += `<tr><td colspan="4">No drives yet.</td></tr>`;
+    } else {
+      teamDrives.forEach((d,i)=>{
+        chartOut += `<tr><td class="statLabel">${i+1}</td>
+          <td>${absToSpotLabel(d.startAbs)} / Q${d.startQuarter} / ${d.how}</td>
+          <td>${absToSpotLabel(d.endAbs)} / Q${d.endQuarter||d.startQuarter} / ${d.result||'—'}</td>
+          <td>${d.plays.length}-${d.yards}</td></tr>`;
+      });
+    }
+    chartOut += `</tbody></table></div></div>`;
+  });
+  document.getElementById('driveChartContainer').innerHTML = chartOut;
+
+  let statsOut = '';
+  ['A','B'].forEach(side=>{
+    const teamName = side==='A' ? state.teamA : state.teamB;
+    const cls = side==='A' ? 'tka' : 'opp';
+    const s = driveStats[side];
+    const row = (label, val) => `<tr><td class="statLabel">${label}</td><td>${val}</td></tr>`;
+    statsOut += `<div class="statPanel ${cls}"><h3>${teamName} Drive Stats</h3><div class="cmpTableWrap"><table class="cmpTable"><tbody>`;
+    statsOut += row('Total Drives', s.total);
+    statsOut += row('Scoring Drives', s.scoring);
+    statsOut += row('Avg Start', s.total>0 ? absToSpotLabel(s.startSum/s.total) : '—');
+    statsOut += row('Avg Yds Gained', fmtAvg(s.total>0 ? s.ydsSum/s.total : null));
+    statsOut += row('Avg Num Plays', fmtAvg(s.total>0 ? s.playsSum/s.total : null));
+    statsOut += row('70+ Yard Drives', s.big70);
+    statsOut += row('10+ Play Drives', s.tenPlus);
+    statsOut += row('Avg 3rd Down Distance', fmtAvg(s.avg3rdDist));
+    statsOut += row('Pts Off Turnovers', s.ptsOffTO);
+    statsOut += row('3-and-Outs', s.threeAndOut);
+    statsOut += row('Drive Success Rate', s.total>0 ? Math.round(s.success/s.total*100)+'%' : '—');
+    statsOut += row('TD Rate', s.total>0 ? Math.round(s.tdDrives/s.total*100)+'%' : '—');
+    statsOut += `</tbody></table></div></div>`;
+  });
+  document.getElementById('driveStatsContainer').innerHTML = statsOut;
 }
 
 // Aggregates one game's plays into per-player-number stats. Offensive stats (rushing/receiving/
@@ -1206,7 +1798,7 @@ function computePlayerStatsForPlays(plays){
   const players = {};
   function ensure(num){
     if(!num) return null;
-    if(!players[num]) players[num] = {rushAtt:0,rushYds:0,rushTD:0, rec:0,recYds:0,recTD:0, passAtt:0,passComp:0,passYds:0,passTD:0, tackles:0, xpMade:0, twoPtMade:0};
+    if(!players[num]) players[num] = {rushAtt:0,rushYds:0,rushTD:0, rec:0,recYds:0,recTD:0, passAtt:0,passComp:0,passYds:0,passTD:0, tackles:0, xpMade:0, twoPtMade:0, defTds:0};
     return players[num];
   }
   rows.forEach(r=>{
@@ -1245,9 +1837,16 @@ function computePlayerStatsForPlays(plays){
         const t = ensure(num);
         if(t) t.tackles++;
       });
+      if(p.defTD && p.defTdPlayer){
+        const dt = ensure(p.defTdPlayer);
+        if(dt) dt.defTds++;
+      }
     }
 
-    if(p.offenseSide==='A' && p.patPlayer){
+    // A PAT is attempted by whichever team just scored — normally that's the offense (a
+    // regular TD), but for a defensive return TD it's the team that just recovered it instead.
+    const patAttemptedByA = (p.offenseSide==='A' && p.result==='TD') || (p.offenseSide==='B' && p.defTD);
+    if(patAttemptedByA && p.patPlayer){
       const ps = ensure(p.patPlayer);
       if(ps){
         if(p.pat==='pat1') ps.xpMade++;
@@ -1313,6 +1912,9 @@ function renderPlayerStats(){
   buildTable('playerKickingTable', ['xpMade','twoPtMade'],
     st=>`${st.xpMade} XP${st.twoPtMade?', '+st.twoPtMade+' 2pt':''}`,
     st=>st.xpMade>0 || st.twoPtMade>0);
+  buildTable('playerDefTable', ['defTds'],
+    st=>`${st.defTds}`,
+    st=>st.defTds>0);
 
   renderGameHistoryList(games);
 }
@@ -1322,7 +1924,10 @@ function renderGameHistoryList(games){
   if(!games || games.length===0){ el.innerHTML = '<div class="statNote" style="margin:0;">No games yet.</div>'; return; }
   let out = '<table><tbody>';
   games.forEach((g,i)=>{
-    out += `<tr><td>${i+1}</td><td>${g.isCurrent ? 'Current' : g.date}</td><td>${g.teamA} ${g.scoreA} - ${g.scoreB} ${g.teamB}</td></tr>`;
+    const actionBtn = g.isCurrent
+      ? `<button class="editRowBtn" onclick="discardCurrentGame()" title="Discard this in-progress game without saving it">🗑 Discard</button>`
+      : `<button class="editRowBtn" onclick="deleteArchivedGame(${g.id})" title="Delete this game permanently">🗑 Delete</button>`;
+    out += `<tr><td>${i+1}</td><td>${g.isCurrent ? 'Current' : g.date}</td><td>${g.teamA} ${g.scoreA} - ${g.scoreB} ${g.teamB}</td><td>${actionBtn}</td></tr>`;
   });
   out += '</tbody></table>';
   el.innerHTML = out;
@@ -1392,11 +1997,7 @@ function exportSeasonCSV(){
   showToast('Season CSV downloaded — use Share to send it');
 }
 
-function newGame(){
-  if(state.plays.length>0 || state.scoreA>0 || state.scoreB>0){
-    if(!confirm(`Start a new game? "${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}" will be saved to Player Stats/Game history, then the board clears for the next game.`)) return;
-    archiveCurrentGame();
-  }
+function resetGameState(){
   editingIndex = null;
   editSnapshot = null;
   state = { teamA:'TKA', teamB:'Opponent', scoreA:0, scoreB:0, quarter:1, possession:'A', plays:[],
@@ -1408,6 +2009,34 @@ function newGame(){
   setLogBtnMode(false);
 }
 
+function newGame(){
+  if(state.plays.length>0 || state.scoreA>0 || state.scoreB>0){
+    if(!confirm(`Start a new game? "${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}" will be saved to Player Stats/Game history, then the board clears for the next game.`)) return;
+    archiveCurrentGame();
+  }
+  resetGameState();
+}
+
+// Wipes the in-progress game WITHOUT saving it to history — for clearing out a test/practice
+// session (like the one that was polluting season stats) rather than a real game.
+function discardCurrentGame(){
+  if(!confirm(`Discard the current game ("${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}") without saving it to Player Stats/Game history? This cannot be undone.`)) return;
+  resetGameState();
+  renderPlayerStats();
+  showToast('Current game discarded');
+}
+
+// Permanently removes an already-archived game from history (and therefore from season stats).
+function deleteArchivedGame(id){
+  const history = loadHistory();
+  const game = history.find(g=>g.id===id);
+  const label = game ? `${game.date} — ${game.teamA} ${game.scoreA}-${game.scoreB} ${game.teamB}` : 'this game';
+  if(!confirm(`Permanently delete "${label}"? This removes it from season stats and cannot be undone.`)) return;
+  saveHistory(history.filter(g=>g.id!==id));
+  renderPlayerStats();
+  showToast('Game deleted');
+}
+
 populatePenaltySelect();
 load();
 loadRoster();
@@ -1417,6 +2046,20 @@ renderLog();
 updateConditionalFields();
 restoreCurrentSituation();
 showView('plays');
+
+// Keep the LOG PLAY button visible above the on-screen keyboard — iOS shrinks the visible
+// viewport when a text field is focused, which can otherwise hide the button below the fold.
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', () => {
+    const active = document.activeElement;
+    if(active && (active.tagName==='INPUT' || active.tagName==='SELECT')){
+      setTimeout(()=>{
+        const btn = document.querySelector('.logBtn');
+        if(btn) btn.scrollIntoView({behavior:'smooth', block:'end'});
+      }, 150);
+    }
+  });
+}
 </script>
 </body>
 </html>
