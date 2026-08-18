@@ -415,7 +415,7 @@
     <div class="logWrap" style="max-height:340px;">
       <table>
         <thead>
-          <tr><th></th><th>#</th><th>Team</th><th>Player</th><th>Type</th><th>Dir</th><th>Tacklers</th><th>Pen</th><th>Result</th><th>Down/Dist</th><th>Yard Line</th><th>Yds</th><th>1D</th><th>Score</th></tr>
+          <tr><th></th><th>#</th><th>Team</th><th>Down/Dist</th><th>Yard Line</th><th>Player</th><th>Type</th><th>Dir</th><th>Tacklers</th><th>Pen</th><th>Result</th><th>Yds</th><th>1D</th><th>Score</th></tr>
         </thead>
         <tbody id="logBody"></tbody>
       </table>
@@ -1091,6 +1091,15 @@ function fmtDownDist(p){
 }
 function fmtYardLine(p){
   return p.side && p.yardLineNum ? (p.side+' '+p.yardLineNum) : (p.yardLineNum||'');
+}
+// Play Log's "current play" columns — the down/distance/spot this play was actually snapped
+// from (r.beforeDown/beforeDistance/beforePos), as opposed to fmtDownDist/fmtYardLine above
+// which describe the *result* entered for the next play.
+function fmtBeforeDownDist(r){
+  return r.beforeDown ? (r.beforeDown+ordinal(r.beforeDown)+' & '+(r.beforeDistance!=null?r.beforeDistance:'?')) : '';
+}
+function fmtBeforeSpot(r){
+  return r.beforePos!=null ? absToSpotLabel(r.beforePos) : '';
 }
 function fmtPenalty(p){
   if(!p.hasPenalty) return '';
@@ -1950,7 +1959,7 @@ function renderLog(){
     tr.className = p.offenseSide==='A' ? 'tka-row' : 'opp-row';
     if(editingIndex===i) tr.classList.add('editing-row');
     const ydsDisplay = (p.isPreSnap || r.yardsOnPlay===null) ? '—' : (r.yardsOnPlay>0 ? '+'+r.yardsOnPlay : r.yardsOnPlay);
-    tr.innerHTML = `<td><button class="editRowBtn" onclick="editPlay(${i})">✎</button></td><td>${i+1}</td><td>${p.offenseTeam}</td><td>${fmtPlayer(p)}</td><td>${p.type}</td><td>${p.dir}</td><td>${fmtTacklers(p)}</td><td>${fmtPenalty(p)}</td><td>${fmtResult(p)}</td><td>${fmtDownDist(p)}</td><td>${fmtYardLine(p)}</td><td>${ydsDisplay}</td><td>${r.isFirstDown?'✓':''}</td><td class="scoreTag">${p.scoreAfter}</td>`;
+    tr.innerHTML = `<td><button class="editRowBtn" onclick="editPlay(${i})">✎</button></td><td>${i+1}</td><td>${p.offenseTeam}</td><td>${fmtBeforeDownDist(r)}</td><td>${fmtBeforeSpot(r)}</td><td>${fmtPlayer(p)}</td><td>${p.type}</td><td>${p.dir}</td><td>${fmtTacklers(p)}</td><td>${fmtPenalty(p)}</td><td>${fmtResult(p)}</td><td>${ydsDisplay}</td><td>${r.isFirstDown?'✓':''}</td><td class="scoreTag">${p.scoreAfter}</td>`;
     body.appendChild(tr);
   });
   if(editingIndex===null){
