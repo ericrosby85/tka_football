@@ -1381,7 +1381,11 @@ function computeDownEfficiency(rows, downNum){
 
 // Every scoring play in the game (TD/FG/Safety/defensive-return TD), in order, with a
 // human-readable description and the point value including any PAT/2pt add-on.
-function computeScoringPlays(rows){
+// labelFn(num, side) formats a player number for display — defaults to a bare "#12" (used by
+// tests). The live app passes a labelFn that looks up TKA (side A) names on the roster, since we
+// don't track the opponent's roster and just show their numbers.
+function computeScoringPlays(rows, labelFn){
+  labelFn = labelFn || (num => '#'+(num||'?'));
   const out = [];
   rows.forEach(r=>{
     const p = r.play;
@@ -1390,24 +1394,24 @@ function computeScoringPlays(rows){
 
     if(p.defTD){
       team = r.def; kind = 'Defensive TD';
-      desc = `Defensive TD by #${p.defTdPlayer||'?'}`;
+      desc = `Defensive TD by ${labelFn(p.defTdPlayer, team)}`;
       points = 6;
     } else if(p.result==='TD'){
       team = r.off;
       if(p.type==='Kickoff' || p.type==='Punt'){
         kind = 'Special Teams TD';
-        desc = `${p.type} Return TD by #${p.playerNum||'?'}`;
+        desc = `${p.type} Return TD by ${labelFn(p.playerNum, team)}`;
       } else if(p.type==='Pass'){
         kind = 'Offensive TD';
-        desc = `Pass TD, #${p.passer||'?'} to #${p.playerNum||'?'}`;
+        desc = `Pass TD, ${labelFn(p.passer, team)} to ${labelFn(p.playerNum, team)}`;
       } else {
         kind = 'Offensive TD';
-        desc = `Run TD by #${p.playerNum||'?'}`;
+        desc = `Run TD by ${labelFn(p.playerNum, team)}`;
       }
       points = 6;
     } else if(p.result==='FG'){
       team = r.off; kind = 'Field Goal';
-      desc = `Field Goal by #${p.playerNum||'?'}`;
+      desc = `Field Goal by ${labelFn(p.playerNum, team)}`;
       points = 3;
     } else if(p.result==='Safety'){
       team = r.def; kind = 'Safety';
@@ -1418,8 +1422,8 @@ function computeScoringPlays(rows){
     if(!team) return;
 
     if(p.result==='TD' || p.defTD){
-      if(p.pat==='pat1'){ points += 1; desc += ` + PAT by #${p.patPlayer||'?'} good`; }
-      else if(p.pat==='pat2run' || p.pat==='pat2pass'){ points += 2; desc += ` + 2pt (${p.pat==='pat2run'?'run':'pass'}) by #${p.patPlayer||'?'} good`; }
+      if(p.pat==='pat1'){ points += 1; desc += ` + PAT by ${labelFn(p.patPlayer, team)} good`; }
+      else if(p.pat==='pat2run' || p.pat==='pat2pass'){ points += 2; desc += ` + 2pt (${p.pat==='pat2run'?'run':'pass'}) by ${labelFn(p.patPlayer, team)} good`; }
       else if(p.pat==='patno'){ desc += ' + PAT/2pt no good'; }
     }
 
@@ -1652,9 +1656,10 @@ function renderDownEfficiencyTable(containerId, downNum){
   const rows = walkPlays();
   const eff = computeDownEfficiency(rows, downNum);
 
+  const ord = downNum + ordinal(downNum);
   const rowsSpec3 = [
-    [`${downNum}rd/th Down Attempts`, b=>b.atts],
-    [`${downNum}rd/th Down Conversions`, b=>b.conv],
+    [`${ord} Down Attempts`, b=>b.atts],
+    [`${ord} Down Conversions`, b=>b.conv],
     ['Conversion %', b=>b.atts>0 ? Math.round(b.conv/b.atts*100)+'%' : '—'],
     ['Avg Distance To Go', b=>fmtAvg(b.distCount>0 ? b.distSum/b.distCount : null)],
     ['3rd and Longs (9+ yds)', b=>b.longs],
@@ -1671,9 +1676,9 @@ function renderDownEfficiencyTable(containerId, downNum){
     ['Avg Yds (Per Rush)', b=>fmtAvg(b.rushAtt>0 ? b.rushYds/b.rushAtt : null)],
     ['Conversions by Penalty', b=>b.convByPen],
     ['Penalties - Yds by Opp', b=>`${b.penOppCount}-${b.penOppYds}`],
-    [`Off ${downNum}rd/th Down Pens - Yds`, b=>`${b.penOffCount}-${b.penOffYds}`],
-    [`${downNum}rd/th Down Turnovers`, b=>b.turnovers],
-    [`${downNum}rd/th Down Touchdowns`, b=>b.tds]
+    [`Off ${ord} Down Pens - Yds`, b=>`${b.penOffCount}-${b.penOffYds}`],
+    [`${ord} Down Turnovers`, b=>b.turnovers],
+    [`${ord} Down Touchdowns`, b=>b.tds]
   ];
 
   const rowsSpec1 = [
@@ -1695,7 +1700,7 @@ function renderDownEfficiencyTable(containerId, downNum){
 
 function renderScoringTab(){
   const rows = walkPlays();
-  const scoringPlays = computeScoringPlays(rows);
+  const scoringPlays = computeScoringPlays(rows, (num, side) => side==='A' ? rosterLabel(num) : ('#'+(num||'?')));
   const drives = computeDrives();
   const stats = computeStats();
 
@@ -1748,16 +1753,17 @@ function renderDriveChartTab(){
     const teamName = side==='A' ? state.teamA : state.teamB;
     const cls = side==='A' ? 'tka' : 'opp';
     const teamDrives = drives.filter(d=>d.team===side);
-    chartOut += `<div class="statPanel ${cls}"><h3>${teamName} Drives</h3><div class="cmpTableWrap"><table class="cmpTable"><thead><tr>
-      <th class="statLabel">#</th><th>Started (Spot / Qtr / How)</th><th>Ended (Spot / Qtr / Result)</th><th>Plays-Yds</th>
-      </tr></thead><tbody>`;
+    chartOut += `<div class="statPanel ${cls}"><h3>${teamName} Drives</h3><div class="cmpTableWrap"><table class="cmpTable"><thead>
+      <tr><th class="statLabel" rowspan="2">#</th><th colspan="3">Started</th><th colspan="3">Ended</th><th rowspan="2">Plays-Yds</th></tr>
+      <tr><th>Spot</th><th>Qtr</th><th>How</th><th>Spot</th><th>Qtr</th><th>Result</th></tr>
+      </thead><tbody>`;
     if(teamDrives.length===0){
-      chartOut += `<tr><td colspan="4">No drives yet.</td></tr>`;
+      chartOut += `<tr><td colspan="8">No drives yet.</td></tr>`;
     } else {
       teamDrives.forEach((d,i)=>{
         chartOut += `<tr><td class="statLabel">${i+1}</td>
-          <td>${absToSpotLabel(d.startAbs)} / Q${d.startQuarter} / ${d.how}</td>
-          <td>${absToSpotLabel(d.endAbs)} / Q${d.endQuarter||d.startQuarter} / ${d.result||'—'}</td>
+          <td>${absToSpotLabel(d.startAbs)}</td><td>Q${d.startQuarter}</td><td>${d.how}</td>
+          <td>${absToSpotLabel(d.endAbs)}</td><td>Q${d.endQuarter||d.startQuarter}</td><td>${d.result||'—'}</td>
           <td>${d.plays.length}-${d.yards}</td></tr>`;
       });
     }
