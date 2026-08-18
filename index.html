@@ -1178,10 +1178,14 @@ function walkPlays(playsArr){
       yardsOnPlay = off==='A' ? -beforePos : (beforePos - 100);
     } else if(play.result==='FG'){
       yardsOnPlay = 0;
+    } else if(turnover){
+      // A turnover isn't a "gain" or "loss" — it's a lost down and a lost possession. The spot
+      // where it's recovered isn't meaningful yardage, so we don't compute or display a number
+      // for it (shows as "—" in the Play Log, same treatment as kickoffs/punts).
+      yardsOnPlay = null;
     } else {
-      // Tackled, Tackle for Loss, Sack, Complete Pass, Interception, Fumble, Turnover —
-      // all just a move from beforePos to afterPos in the fixed TKA/OPP frame. Turnovers no
-      // longer need special "mirrored" math since the frame doesn't flip with possession.
+      // Tackled, Tackle for Loss, Sack, Complete Pass — a move from beforePos to afterPos in
+      // the fixed TKA/OPP frame.
       yardsOnPlay = (afterPosRaw!=null) ? dir*(afterPosRaw - beforePos) : 0;
     }
 
