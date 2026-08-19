@@ -147,6 +147,14 @@
   .topBtns button.export{background:var(--accent); border-color:var(--accent);}
   .topBtns button.reset{background:var(--red); border-color:var(--red);}
 
+  .milestoneBtns{display:flex; gap:8px; margin-bottom:10px;}
+  .milestoneBtns button{flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--card2); color:var(--text); font-size:13px; font-weight:600;}
+  .milestoneBtns button.halfBtn{background:var(--silver-d); border-color:var(--silver-d);}
+  .milestoneBtns button.endGameBtn{background:var(--red); border-color:var(--red);}
+  .gameEndedBanner{background:var(--card2); border:2px solid var(--red); border-radius:10px; padding:14px; margin-bottom:12px; text-align:center;}
+  .gameEndedBanner button{margin-top:8px; padding:10px 16px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-weight:700;}
+  .halfMarkerRow td{background:var(--card2); text-align:center; font-weight:700; letter-spacing:.05em; color:var(--muted); padding:8px 4px;}
+
   .tabRow{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px;}
   .tabRow .btn{padding:12px 2px; font-size:12px;}
 
@@ -253,6 +261,11 @@
     <button class="reset" onclick="newGame()">New Game</button>
   </div>
 
+  <div class="milestoneBtns">
+    <button class="halfBtn" onclick="logEndOfHalf()">⏸ End of Half</button>
+    <button class="endGameBtn" onclick="endGame()">🏁 End Game</button>
+  </div>
+
   <div class="tabRow">
     <div class="btn" id="tabPlays" onclick="showView('plays')">📋 Play-by-Play</div>
     <div class="btn" id="tabStats" onclick="showView('stats')">📊 Box Score</div>
@@ -262,7 +275,13 @@
   </div>
 
   <div id="viewPlays">
-  <div class="entryGrid">
+
+  <div class="gameEndedBanner" id="gameEndedBanner" style="display:none;">
+    🏁 This game has ended — no more plays expected.<br>
+    <button onclick="reopenGame()">✎ Edit This Game</button>
+  </div>
+
+  <div class="entryGrid" id="entryGrid">
   <div class="entryLeft">
 
   <section>
@@ -316,6 +335,7 @@
       <div class="btn small" data-val="Interception" data-for="Pass" onclick="pick('result',this)">Interception</div>
       <div class="btn small" data-val="Fumble" data-for="Run,Pass" onclick="pick('result',this)">Fumble</div>
       <div class="btn small" data-val="Turnover" data-for="Run,Pass" onclick="pick('result',this)">Other Turnover</div>
+        <div class="btn small" data-val="TurnoverOnDowns" data-for="Run,Pass" onclick="pick('result',this)">Turnover on Downs</div>
       <div class="btn small" data-val="Touchback" data-for="Kickoff,Punt" onclick="pick('result',this)">Touchback</div>
       <div class="btn small" data-val="Return" data-for="Kickoff,Punt" onclick="pick('result',this)">Return</div>
       <div class="btn small" data-val="FairCatch" data-for="Punt" onclick="pick('result',this)">Fair Catch</div>
@@ -628,7 +648,8 @@ let state = {
   quarter: 1,
   possession: 'A',
   plays: [],
-  currentDown: '', currentDistance: '', currentSide: '', currentYardLine: ''
+  currentDown: '', currentDistance: '', currentSide: '', currentYardLine: '',
+  gameEnded: false
 };
 
 let entry = {}; // current in-progress play selections
@@ -702,6 +723,7 @@ function save(){
 }
 
 function renderScoreboard(){
+  updateGameEndedUI();
   document.getElementById('teamAName').value = state.teamA;
   document.getElementById('teamBName').value = state.teamB;
   document.getElementById('scoreA').textContent = state.scoreA;
@@ -777,7 +799,7 @@ function pick(field, el){
   if(field==='result'){
     if(el.dataset.val==='TD') cls='selGreen';
     else if(['Turnover','Interception','Fumble','Safety','KORecovered'].includes(el.dataset.val)) cls='selRed';
-    else if(['FG','Sack','TFL','Punt','OutOfBounds'].includes(el.dataset.val)) cls='selAmber';
+    else if(['FG','Sack','TFL','Punt','OutOfBounds','TurnoverOnDowns'].includes(el.dataset.val)) cls='selAmber';
   }
   el.classList.add(cls);
   entry[field] = el.dataset.val;
@@ -797,6 +819,17 @@ function pick(field, el){
   }
   if(field==='type'){
     updateConditionalFields();
+    if(el.dataset.val==='Kickoff'){
+      // A kickoff never carries a meaningful down/distance/spot forward from the previous
+      // play (that was a different drive entirely) — clear any stale pre-filled values so
+      // Eric starts fresh describing where the return actually ended up.
+      entry.down = ''; entry.side = '';
+      document.getElementById('distance').value = '';
+      document.getElementById('yardLine').value = '';
+      ['downGrid','sideGrid'].forEach(id=>{
+        document.getElementById(id).querySelectorAll('.btn').forEach(b=>b.classList.remove('sel','selRed','selGreen','selAmber'));
+      });
+    }
     // Tackled is the overwhelming default outcome for a run — auto-pick it so Result only
     // needs a tap when something unusual happened (TFL, fumble, TD, etc). Skip if a result
     // was already chosen (e.g. re-tapping Run after picking something else on purpose).
@@ -815,6 +848,16 @@ function updateFreeKickVisibility(){
   document.getElementById('patBox').classList.toggle('show', entry.result==='TD' || !!entry.defTD);
   document.getElementById('situationSection').style.display = followedByFreeKick ? 'none' : '';
   document.getElementById('freeKickNote').style.display = followedByFreeKick ? '' : 'none';
+  if(followedByFreeKick){
+    // Hiding the section doesn't clear it — wipe the fields too so nothing stale is visible
+    // if Eric flips back, and so logPlay()'s own belt-and-suspenders check has nothing to undo.
+    entry.down = ''; entry.side = '';
+    document.getElementById('distance').value = '';
+    document.getElementById('yardLine').value = '';
+    ['downGrid','sideGrid'].forEach(id=>{
+      document.getElementById(id).querySelectorAll('.btn').forEach(b=>b.classList.remove('sel','selRed','selGreen','selAmber'));
+    });
+  }
 }
 
 function toggleDefTD(){
@@ -836,10 +879,17 @@ function logPlay(){
   const type = entry.type || '';
   const dir = entry.dir || '';
   const result = entry.result || 'Normal';
-  const down = entry.down || '';
-  const distance = document.getElementById('distance').value.trim();
-  const yardLineNum = document.getElementById('yardLine').value.trim();
-  const side = entry.side || '';
+  const defTD = !!entry.defTD;
+  // TD/Safety/FG (and a defensive return TD) hide the Down/To Go/Ball On section since a free
+  // kick follows — but the underlying fields can still hold stale values left over from an
+  // earlier play (hiding a section doesn't clear it). Force them blank here so a scoring play
+  // never saves leftover down/distance/spot data, which would otherwise carry forward wrong
+  // into whatever's logged next (e.g. showing up on the following Kickoff row).
+  const situationHidden = ['TD','Safety','FG'].includes(result) || defTD;
+  const down = situationHidden ? '' : (entry.down || '');
+  const distance = situationHidden ? '' : document.getElementById('distance').value.trim();
+  const yardLineNum = situationHidden ? '' : document.getElementById('yardLine').value.trim();
+  const side = situationHidden ? '' : (entry.side || '');
   const penYardsRaw = document.getElementById('penYards').value.trim();
   const penYards = penYardsRaw ? parseInt(penYardsRaw,10) : 0;
   const penOn = entry.penOn || '';
@@ -850,7 +900,6 @@ function logPlay(){
   const passer = document.getElementById('passerNum').value.trim();
   const tackler1 = document.getElementById('tackler1').value.trim();
   const tackler2 = document.getElementById('tackler2').value.trim();
-  const defTD = !!entry.defTD;
   const defTdPlayer = document.getElementById('defTdPlayerNum').value.trim();
 
   const offenseSide = state.possession; // 'A' or 'B'
@@ -956,6 +1005,14 @@ function setLogBtnMode(isEditing, index){
 function editPlay(index){
   const p = state.plays[index];
   if(!p) return;
+
+  if(state.gameEnded){
+    // Tapping ✎ on any play should just work, even if Eric hasn't tapped the top-level Edit
+    // button yet — reopen the game automatically so the entry form is visible to edit into.
+    state.gameEnded = false;
+    save();
+    renderScoreboard();
+  }
 
   editSnapshot = {
     possession: state.possession,
@@ -1085,6 +1142,54 @@ function undoLast(){
   showToast('Last play removed');
 }
 
+// A marker in the play log (not a real play) that tells the drive-grouping logic "stop here —
+// the current drive doesn't continue past this point," even though no score/turnover/kickoff
+// naturally closed it. Mainly for a half ending mid-drive with the clock just running out.
+function logEndOfHalf(){
+  if(editingIndex!==null){ showToast('Finish or cancel the edit first'); return; }
+  if(!confirm('Mark the end of the half here? This closes out the current drive in the Drive Chart.')) return;
+  state.plays.push({
+    quarter: state.quarter, offenseTeam: '', offenseSide: state.possession,
+    playerNum: '', type: 'EndOfHalf', dir: '', result: '', pat: '', patPlayer: '',
+    defTD: false, defTdPlayer: '',
+    passer: '', tackler1: '', tackler2: '',
+    down: '', distance: '', side: '', yardLineNum: '',
+    hasPenalty: false, penYards: 0, penOn: '', penaltyName: '', isPreSnap: false,
+    scoreAfter: `${state.teamA} ${state.scoreA} - ${state.scoreB} ${state.teamB}`,
+    scoreDelta: {A:0, B:0}
+  });
+  save();
+  renderLog();
+  showToast('End of half logged');
+}
+
+function endGame(){
+  if(state.plays.length===0){ showToast('No plays logged yet'); return; }
+  if(state.gameEnded){ showToast('Game already ended'); return; }
+  if(editingIndex!==null){ showToast('Finish or cancel the edit first'); return; }
+  if(!confirm('End this game? The Log Play button will be hidden — tap "Edit This Game" on the Player Stats tab (or the ✎ on any play) to make more changes later.')) return;
+  state.gameEnded = true;
+  save();
+  renderScoreboard();
+  showToast('Game ended');
+}
+
+function reopenGame(){
+  state.gameEnded = false;
+  save();
+  renderScoreboard();
+  showView('plays');
+  showToast('Game reopened — Log Play is back');
+}
+
+function updateGameEndedUI(){
+  const ended = !!state.gameEnded;
+  const banner = document.getElementById('gameEndedBanner');
+  const grid = document.getElementById('entryGrid');
+  if(banner) banner.style.display = ended ? '' : 'none';
+  if(grid) grid.style.display = ended ? 'none' : '';
+}
+
 function fmtDownDist(p){
   return p.down ? (p.down+ordinal(p.down)+' & '+(p.distance||'?')) : '';
 }
@@ -1106,7 +1211,7 @@ function fmtPenalty(p){
 }
 const RESULT_LABELS = {
   Tackled:'Tackled', TFL:'Tackle for Loss', CompletePass:'Complete Pass', Incomplete:'Incomplete Pass',
-  Sack:'Sack', Interception:'Interception', Fumble:'Fumble', Turnover:'Other Turnover', Punt:'Punt',
+  Sack:'Sack', Interception:'Interception', Fumble:'Fumble', Turnover:'Other Turnover', TurnoverOnDowns:'Turnover on Downs', Punt:'Punt',
   TD:'Touchdown', Safety:'Safety', FG:'FG Good',
   Touchback:'Touchback', Return:'Return', KORecovered:'Recovered by Kicking Team', OutOfBounds:'Out of Bounds',
   FairCatch:'Fair Catch', Downed:'Downed'
@@ -1151,9 +1256,19 @@ function walkPlays(playsArr){
     // Also recognize a legacy result=='Punt' (the old Run/Pass-scoped Punt button) so any
     // already-logged plays from before Punt became its own Play Type still walk correctly.
     const isPunt = play.type==='Punt' || play.result==='Punt';
+    // A marker logged via "End of Half" — not a real play at all. It closes out whatever drive
+    // was open (handled in computeDrives) but otherwise shouldn't touch anything: no yardage, no
+    // first-down check, and no change to the carried-forward down/distance/spot (the following
+    // Kickoff establishes the real starting spot for the new half on its own).
+    const isHalfMarker = play.type==='EndOfHalf';
     const scoring = (play.result==='TD' || play.result==='FG' || play.result==='Safety');
     const turnover = (play.result==='Turnover' || play.result==='Interception' || play.result==='Fumble');
-    const possessionEnds = scoring || turnover || isKickoff || isPunt;
+    // A failed 4th down isn't a turnover for stats purposes (no fumble/INT, no turnover-margin
+    // impact) — the offense just didn't convert. But possession still changes hands right here,
+    // same as any other turnover, so the next play's carried-forward down/distance/spot needs to
+    // reset the same way.
+    const turnoverOnDowns = play.result==='TurnoverOnDowns';
+    const possessionEnds = scoring || turnover || isKickoff || isPunt || turnoverOnDowns;
 
     const beforePos = carryPos;
     const afterPosRaw = yardLineAbs(play.side, play.yardLineNum);
@@ -1164,7 +1279,9 @@ function walkPlays(playsArr){
     const dir = off==='A' ? 1 : -1;
 
     let yardsOnPlay = 0;
-    if(play.isPreSnap){
+    if(isHalfMarker){
+      yardsOnPlay = null;
+    } else if(play.isPreSnap){
       yardsOnPlay = 0;
     } else if(isKickoff || isPunt){
       // Kickoffs and punts start a fresh drive — there's no meaningful "before" position to
@@ -1184,13 +1301,14 @@ function walkPlays(playsArr){
       // for it (shows as "—" in the Play Log, same treatment as kickoffs/punts).
       yardsOnPlay = null;
     } else {
-      // Tackled, Tackle for Loss, Sack, Complete Pass — a move from beforePos to afterPos in
-      // the fixed TKA/OPP frame.
+      // Tackled, Tackle for Loss, Sack, Complete Pass, Turnover on Downs — a move from beforePos
+      // to afterPos in the fixed TKA/OPP frame. A failed 4th down still gained (or lost) real
+      // yards, unlike an actual turnover, so it's calculated normally here.
       yardsOnPlay = (afterPosRaw!=null) ? dir*(afterPosRaw - beforePos) : 0;
     }
 
     let isFirstDown = false, fdType = null;
-    if(!play.isPreSnap && !possessionEnds && play.down){
+    if(!isHalfMarker && !play.isPreSnap && !possessionEnds && play.down){
       const enteredDown = parseInt(play.down,10);
       if(carryDown!=null && carryDown>1 && enteredDown===1){
         isFirstDown = true;
@@ -1209,9 +1327,12 @@ function walkPlays(playsArr){
     // detect a goal-to-go snap (distance-to-go equals distance-to-goal) without a "G" marker.
     const toGoalYds = off==='A' ? (100 - beforePos) : beforePos;
 
-    rows.push({play, off, def, beforePos, afterPos:afterPosRaw, yardsOnPlay, isFirstDown, fdType, beforeDown, beforeDistance, toGoalYds});
+    rows.push({play, off, def, beforePos, afterPos:afterPosRaw, yardsOnPlay, isFirstDown, fdType, beforeDown, beforeDistance, toGoalYds, isHalfMarker});
 
-    if(possessionEnds){
+    if(isHalfMarker){
+      // Total no-op — leave carryPos/carryDown/carryDistance exactly as they were. The next
+      // real play (normally a Kickoff) establishes its own starting spot regardless.
+    } else if(possessionEnds){
       carryPos = (afterPosRaw!=null) ? afterPosRaw : 25;
       carryDown = play.down ? parseInt(play.down,10) : null;
       carryDistance = play.distance ? parseInt(play.distance,10) : null;
@@ -1252,6 +1373,21 @@ function computeDrives(plays){
   rows.forEach(r=>{
     const p = r.play;
     if(p.isPreSnap) return; // pre-snap penalties don't consume a down or move the ball
+
+    if(p.type==='EndOfHalf'){
+      // Explicit boundary marker — closes whatever drive is open, regardless of which team
+      // has it. This matters because (unlike a turnover) the SAME team can easily be on
+      // offense again right after halftime, which the generic "team changed" detection below
+      // wouldn't catch on its own.
+      if(current){
+        // r.beforePos is wherever the last real play left off — the marker itself is a total
+        // no-op in walkPlays, so r.afterPos has nothing meaningful in it.
+        closeDrive(r, 'End of Half', r.beforePos);
+        current = null;
+      }
+      pendingHow = 'Kickoff'; // halves normally start with a kickoff
+      return;
+    }
 
     const isKickoff = p.type==='Kickoff';
     const isPunt = p.type==='Punt' || p.result==='Punt';
@@ -1943,10 +2079,17 @@ function renderGameHistoryList(games){
   if(!games || games.length===0){ el.innerHTML = '<div class="statNote" style="margin:0;">No games yet.</div>'; return; }
   let out = '<table><tbody>';
   games.forEach((g,i)=>{
-    const actionBtn = g.isCurrent
-      ? `<button class="editRowBtn" onclick="discardCurrentGame()" title="Discard this in-progress game without saving it">🗑 Discard</button>`
-      : `<button class="editRowBtn" onclick="deleteArchivedGame(${g.id})" title="Delete this game permanently">🗑 Delete</button>`;
-    out += `<tr><td>${i+1}</td><td>${g.isCurrent ? 'Current' : g.date}</td><td>${g.teamA} ${g.scoreA} - ${g.scoreB} ${g.teamB}</td><td>${actionBtn}</td></tr>`;
+    let actionBtn;
+    if(g.isCurrent){
+      const editBtn = state.gameEnded
+        ? `<button class="editRowBtn" onclick="reopenGame()" title="Reopen this game to log more plays or make corrections">✎ Edit</button> `
+        : '';
+      actionBtn = `${editBtn}<button class="editRowBtn" onclick="discardCurrentGame()" title="Discard this in-progress game without saving it">🗑 Discard</button>`;
+    } else {
+      actionBtn = `<button class="editRowBtn" onclick="deleteArchivedGame(${g.id})" title="Delete this game permanently">🗑 Delete</button>`;
+    }
+    const label = g.isCurrent ? (state.gameEnded ? 'Current (Ended)' : 'Current') : g.date;
+    out += `<tr><td>${i+1}</td><td>${label}</td><td>${g.teamA} ${g.scoreA} - ${g.scoreB} ${g.teamB}</td><td>${actionBtn}</td></tr>`;
   });
   out += '</tbody></table>';
   el.innerHTML = out;
@@ -1959,6 +2102,12 @@ function renderLog(){
   rows.forEach((r, i)=>{
     const p = r.play;
     const tr = document.createElement('tr');
+    if(r.isHalfMarker){
+      tr.className = 'halfMarkerRow';
+      tr.innerHTML = `<td colspan="14">— END OF HALF (Q${p.quarter||'?'}) —</td>`;
+      body.appendChild(tr);
+      return;
+    }
     tr.className = p.offenseSide==='A' ? 'tka-row' : 'opp-row';
     if(editingIndex===i) tr.classList.add('editing-row');
     const ydsDisplay = (p.isPreSnap || r.yardsOnPlay===null) ? '—' : (r.yardsOnPlay>0 ? '+'+r.yardsOnPlay : r.yardsOnPlay);
@@ -2020,7 +2169,7 @@ function resetGameState(){
   editingIndex = null;
   editSnapshot = null;
   state = { teamA:'TKA', teamB:'Opponent', scoreA:0, scoreB:0, quarter:1, possession:'A', plays:[],
-    currentDown:'', currentDistance:'', currentSide:'', currentYardLine:'' };
+    currentDown:'', currentDistance:'', currentSide:'', currentYardLine:'', gameEnded:false };
   save();
   renderScoreboard();
   renderLog();
