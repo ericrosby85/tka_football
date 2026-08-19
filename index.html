@@ -457,7 +457,7 @@
 
     <section>
       <h2>Passing</h2>
-      <div class="cmpTableWrap" id="comparePassingContainer"></div>
+      <div class="driveChartCols" id="comparePassingContainer"></div>
     </section>
 
     <section>
@@ -1827,18 +1827,46 @@ function renderGameComparison(){
     document.getElementById(containerId).innerHTML = out;
   }
 
-  const passSummary = computeGamePassingSummary(game.plays);
-  const passRowsSpec = [
-    ['Completions-Attempts', st=>`${st.comp}-${st.att}`],
-    ['Yards', st=>st.yds],
-    ['Touchdowns', st=>st.td],
-    ['Interceptions', st=>st.ints],
-    ['Completion %', st=>st.att>0 ? Math.round(st.comp/st.att*100)+'%' : '—']
+  // Passing is a hybrid: our own QB number is always captured, so TKA gets a real per-player
+  // breakdown (handy the moment a backup QB comes in for a series). The opponent's QB number
+  // is never captured, so their side just shows one team-total row pulled from the box score.
+  const passCols = [
+    {label:'C-A', fmt:r=>`${r.comp||0}-${r.att||0}`},
+    {label:'Yds', fmt:r=>r.yds||0},
+    {label:'TD', fmt:r=>r.td||0},
+    {label:'INT', fmt:r=>r.ints||0},
+    {label:'C%', fmt:r=> r.att ? Math.round((r.comp||0)/r.att*100)+'%' : '—'}
   ];
-  document.getElementById('comparePassingContainer').innerHTML =
-    `<table class="cmpTable"><thead><tr><th class="statLabel">Stat</th><th class="tkaCol">${game.teamA}</th><th class="oppCol">${game.teamB}</th></tr></thead><tbody>` +
-    passRowsSpec.map(([label,fn])=>`<tr><td class="statLabel">${label}</td><td>${fn(passSummary.A)}</td><td>${fn(passSummary.B)}</td></tr>`).join('') +
-    '</tbody></table>';
+  const passSummaryB = computeGamePassingSummary(game.plays).B;
+  let passOut = `<div class="statPanel tka"><h3>${game.teamA}</h3><div class="statTableWrap"><table class="statTable"><thead><tr><th class="statLabel">Player</th>`;
+  passCols.forEach(c=>passOut+=`<th>${c.label}</th>`);
+  passOut += `</tr></thead><tbody>`;
+  if(gs.A.passing.length===0){
+    passOut += `<tr><td class="statLabel">—</td>${passCols.map(()=>'<td>—</td>').join('')}</tr>`;
+  } else {
+    gs.A.passing.forEach(row=>{
+      passOut += `<tr><td class="statLabel">${rosterLabel(row.num)}</td>`;
+      passCols.forEach(c=>passOut+=`<td>${c.fmt(row)}</td>`);
+      passOut += `</tr>`;
+    });
+    if(gs.A.passing.length>1){
+      const totals = {
+        comp: gs.A.passing.reduce((s,r)=>s+(r.comp||0),0), att: gs.A.passing.reduce((s,r)=>s+(r.att||0),0),
+        yds: gs.A.passing.reduce((s,r)=>s+(r.yds||0),0), td: gs.A.passing.reduce((s,r)=>s+(r.td||0),0),
+        ints: gs.A.passing.reduce((s,r)=>s+(r.ints||0),0)
+      };
+      passOut += `<tr><td class="statLabel"><b>TEAM TOTAL</b></td>`;
+      passCols.forEach(c=>passOut+=`<td><b>${c.fmt(totals)}</b></td>`);
+      passOut += `</tr>`;
+    }
+  }
+  passOut += `</tbody></table></div></div>`;
+  passOut += `<div class="statPanel opp"><h3>${game.teamB}</h3><div class="statTableWrap"><table class="statTable"><thead><tr><th class="statLabel">Team</th>`;
+  passCols.forEach(c=>passOut+=`<th>${c.label}</th>`);
+  passOut += `</tr></thead><tbody><tr><td class="statLabel">Team Total</td>`;
+  passCols.forEach(c=>passOut+=`<td>${c.fmt(passSummaryB)}</td>`);
+  passOut += `</tr></tbody></table></div></div>`;
+  document.getElementById('comparePassingContainer').innerHTML = passOut;
 
   renderCompareTable('compareRushingContainer', gs.A.rushing, gs.B.rushing, [
     {label:'Att', fmt:r=>r.att||0},
