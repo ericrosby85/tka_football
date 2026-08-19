@@ -457,7 +457,7 @@
 
     <section>
       <h2>Passing</h2>
-      <div class="driveChartCols" id="comparePassingContainer"></div>
+      <div class="cmpTableWrap" id="comparePassingContainer"></div>
     </section>
 
     <section>
@@ -1827,17 +1827,18 @@ function renderGameComparison(){
     document.getElementById(containerId).innerHTML = out;
   }
 
-  renderCompareTable('comparePassingContainer', gs.A.passing, gs.B.passing, [
-    {label:'C-A', fmt:r=>`${r.comp||0}-${r.att||0}`},
-    {label:'Yds', fmt:r=>r.yds||0},
-    {label:'TD', fmt:r=>r.td||0},
-    {label:'INT', fmt:r=>r.ints||0},
-    {label:'C%', fmt:r=> r.att ? Math.round((r.comp||0)/r.att*100)+'%' : '—'}
-  ], list=>({
-    comp: list.reduce((s,r)=>s+(r.comp||0),0), att: list.reduce((s,r)=>s+(r.att||0),0),
-    yds: list.reduce((s,r)=>s+(r.yds||0),0), td: list.reduce((s,r)=>s+(r.td||0),0),
-    ints: list.reduce((s,r)=>s+(r.ints||0),0)
-  }));
+  const passSummary = computeGamePassingSummary(game.plays);
+  const passRowsSpec = [
+    ['Completions-Attempts', st=>`${st.comp}-${st.att}`],
+    ['Yards', st=>st.yds],
+    ['Touchdowns', st=>st.td],
+    ['Interceptions', st=>st.ints],
+    ['Completion %', st=>st.att>0 ? Math.round(st.comp/st.att*100)+'%' : '—']
+  ];
+  document.getElementById('comparePassingContainer').innerHTML =
+    `<table class="cmpTable"><thead><tr><th class="statLabel">Stat</th><th class="tkaCol">${game.teamA}</th><th class="oppCol">${game.teamB}</th></tr></thead><tbody>` +
+    passRowsSpec.map(([label,fn])=>`<tr><td class="statLabel">${label}</td><td>${fn(passSummary.A)}</td><td>${fn(passSummary.B)}</td></tr>`).join('') +
+    '</tbody></table>';
 
   renderCompareTable('compareRushingContainer', gs.A.rushing, gs.B.rushing, [
     {label:'Att', fmt:r=>r.att||0},
@@ -2191,6 +2192,26 @@ function computeGamePlayerStats(plays){
     A: { passing: toSortedArray(passing,'A'), rushing: toSortedArray(rushing,'A'), receiving: toSortedArray(receiving,'A') },
     B: { passing: toSortedArray(passing,'B'), rushing: toSortedArray(rushing,'B'), receiving: toSortedArray(receiving,'B') }
   };
+}
+
+function computeGamePassingSummary(plays){
+  const rows = walkPlays(plays);
+  const blank = () => ({att:0, comp:0, yds:0, td:0, ints:0});
+  const summary = {A: blank(), B: blank()};
+  rows.forEach(r=>{
+    const p = r.play;
+    if(p.isPreSnap || p.type!=='Pass' || p.result==='Sack') return;
+    const side = p.offenseSide;
+    if(side!=='A' && side!=='B') return;
+    const st = summary[side];
+    const isTurnover = TURNOVER_RESULTS.includes(p.result);
+    st.att++;
+    if(p.result==='CompletePass' || p.result==='TD') st.comp++;
+    if(!p.hasPenalty && !isTurnover) st.yds += (r.yardsOnPlay||0);
+    if(p.result==='TD') st.td++;
+    if(p.result==='Interception') st.ints++;
+  });
+  return summary;
 }
 
 function playerNumSort(a,b){ return parseInt(a,10) - parseInt(b,10); }
